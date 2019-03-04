@@ -1,0 +1,220 @@
+---
+title: "GOcategoryStats"
+output:
+  html_document:
+    df_print: paged
+---
+
+TODO: 
+
+The GO overrepresentation part of the public data analysis was done using gprofileR.
+This hasn't really been written up properly. The previous part of the public data analysis
+has been documented fairly well.
+
+1a. re-run the public data analysis using this package and write it up as an Rmarkdown
+document. This is partly done - public_data_analysis.Rmd. It just needs tidying up.
+
+1. Write a wrapper function that will take a set of query and a set of background 
+genes, run the screening plots, perform the GO analysis, then produce screening plots 
+for the top GO categories.
+This is what we'll want to use for GOliath.
+It will need to have a list of GO categories to flag up - there is one of these
+in the dataset suspects1 - now need a function to to check results against this
+and other lists as they are created.
+write a wrapper that will take a big list of sets of genes
+
+2. make this vignette make more sense
+2.1 Explain what this package does and why
+2.2 Document how a gmt file is processed - maybe that and processing the gtf go 
+in a separate vignette
+2.3 example of biased gene list?
+
+What other plots do we need and how do we display them?
+
+This vignette shows examples of exploring a set of genes using the GOcategoryStats package. 
+Firstly we want to explore the set of query genes and see whether anything is 
+obviously amiss there.
+Then we do the GO overrepresentation test.
+Then we explore the GO categories that come up 
+  - see whether the sets of genes in the top GO categories look odd at all
+
+
+```{r}
+library("devtools")
+load_all("M:/GOcategoryStats")
+```
+
+##Processing the gmt and gtf files
+```{r process_files}
+#file_location <- "http://download.baderlab.org/EM_Genesets/current_release/Mouse/symbol/Mouse_GO_AllPathways_no_GO_iea_December_01_2018_symbol.gmt"
+
+file_location <- "http://download.baderlab.org/EM_Genesets/current_release/Mouse/symbol/Mouse_GO_AllPathways_no_GO_iea_February_01_2019_symbol.gmt"
+
+go_categories <- process_GMT(file_location)
+save(go_categories, file = "M:/GOcategoryStats/data/go_categories.rda")
+
+all_go_categories <- process_GMT(file_location, min_genes = 3, max_genes = 10000)
+save(all_go_categories, file = "M:/GOcategoryStats/data/all_go_categories.rda")
+
+
+# file location, fread failed when tring to download directly from the url "ftp://ftp.ensembl.org/pub/release-94/gtf/mus_musculus/Mus_musculus.GRCm38.94.gtf.gz"
+gtf_file <- "C:/Users/bigginsl/Downloads/Mus_musculus.GRCm38.94.gtf.gz"
+gtf <- import_GTF(gtf_file)
+
+gtf_processed <- parse_GTF_info(gtf)
+
+```
+
+
+The datasets m_musculus, bg_genes and genes_1 are included in the GOcategoryStats package.       
+genes_1 is a set of 100 genes that can be used as a set of query genes of interest.     
+m_musculus is a dataset containing gene annotations from Ensembl for the mouse genome.          
+all_go_categories contains ontology groups processed from .....
+
+We need some gene information that we'll get from a gtf file
+
+1. Check the genes against a background set. Produce the plots from gene screen.
+2. overrepresentation test 
+3. explore the top GO category results - would be nice to have a brief summary of these - can we plot them neatly?
+
+```{r datasets}
+head(genes_1)
+head(bg_genes)
+head(m_musculus)
+
+gene_info <- parse_GTF_info(m_musculus)
+head(gene_info)
+```
+
+
+```{r}
+query_genes <- clean_text(genes_1)
+bg_genes <- clean_text(bg_genes)
+
+query_filt <- query_genes[query_genes %in% bg_genes]
+
+#plot_lengths(genes_1, bg_genes, gene_info, in_background = TRUE){
+#  query_genes <- clean_text(genes_1)
+#  bg_genes    <- clean_text(bg_genes)
+  
+#  query_filt <- query_genes[query_genes %in% bg_genes]
+#}
+
+
+```
+
+`r sum(query_genes %in% bg_genes)` query genes were found in the background set. Those 
+that did not match were removed.
+
+##Comparing the properties of a set of genes of interest to a background set
+
+Plot the length of all the genes.
+```{r gene_length_plot}
+sum(!query_filt %in% gene_info$gene_name)
+
+# plot lengths
+query_lengths <- get_lengths(query_filt, gene_info)
+bg_lengths    <- get_lengths(bg_genes, gene_info)
+
+my_plotting_data <- list(query = query_lengths, background = bg_lengths)
+density_plot(my_plotting_data, log = TRUE, main = "gene lengths")
+```
+
+Plot which chromosome the genes are on.
+```{r chr_plot, warning = FALSE}
+query_chr <- get_chromosomes(query_filt, gene_info)
+bg_chr    <- get_chromosomes(bg_genes, gene_info)
+
+chr_list <- list(query = query_chr, background = bg_chr)
+
+chr_proportions <- get_chr_percentage(chr_list)
+
+bar_plot(chr_proportions, main = "chr")
+
+```
+
+Another way of viewing the same data
+```{r chr_differences_plot}
+bar_plot(chr_proportions, main = "chr", plot_differences = TRUE)
+```
+
+
+## Functional analysis
+
+Do an overrepresentation test to see which gene ontology categories are overrepresented 
+in the data
+
+```{r GO_test}
+# need to see how this gets processed - the all_go_categories file is too big, 
+# I'll have to produce a smaller version of it
+
+go_results <- overrep_test(all_go_categories, genes_1, bg_genes)
+head(go_results)
+```
+
+
+Have a look at the genes in the categories and see how the plots look.
+
+Look up the genes from the category
+```{r, warning = FALSE}
+# get the genes from the top category
+top_cat <- get_GO_sets(rownames(go_results)[1], all_go_categories)
+top_cat <- top_cat[[1]]
+
+# plot lengths
+query_lengths <- get_lengths(query_filt, gene_info)
+bg_lengths <- get_lengths(bg_genes, gene_info)
+top_cat_lengths <- get_lengths(top_cat, gene_info)
+
+my_plotting_data <- list(query = query_lengths, background = bg_lengths, top_cat = top_cat_lengths)
+density_plot(my_plotting_data, log = TRUE, main  = "gene lengths")
+```
+
+```{r, warning = FALSE}
+query_chr <- get_chromosomes(query_filt, gene_info)
+bg_chr <- get_chromosomes(bg_genes, gene_info)
+top_cat_chr <- get_chromosomes(top_cat, gene_info)
+
+chr_list <- list(query = query_chr, background = bg_chr, top_cat = top_cat_chr)
+
+chr_proportions <- get_chr_percentage(chr_list)
+
+bar_plot(chr_proportions, main = "chr", col = topo.colors(3, alpha = 0.5), cex_names = 0.6)
+```
+
+Look up the genes from the top 5 categories
+```{r, warning = FALSE}
+selected_go <- rownames(go_results)[1:5]
+
+# get the genes from the top category
+top5_cat <- get_GO_sets(selected_go, all_go_categories)
+
+# plot lengths
+query_lengths <- get_lengths(query_filt, gene_info)
+bg_lengths <- get_lengths(bg_genes, gene_info)
+
+top5_cat_lengths <- lapply(top5_cat, get_lengths, gene_info)
+
+my_plotting_data <- top5_cat_lengths
+my_plotting_data[["query"]] <- query_lengths
+my_plotting_data[["background"]] <- bg_lengths
+density_plot(my_plotting_data, log = TRUE, main = "gene lengths", legend_cex = 0.6,
+             legend_pos = "topleft")
+```
+
+```{r, warning = FALSE}
+query_chr <- get_chromosomes(query_filt, gene_info)
+bg_chr <- get_chromosomes(bg_genes, gene_info)
+
+chr_list <- list("query" = query_chr, "background" = bg_chr)
+
+for (i in 1:5) {
+  chr_data <- chr_list
+  chr_data[[names(top5_cat)[i]]] <- get_chromosomes(top5_cat[[i]], gene_info)
+  chr_proportions <- get_chr_percentage(chr_data)
+
+  bar_plot(chr_proportions, main = "chr", legend_cex = 0.5, cex_names = 0.7)
+}
+```
+
+

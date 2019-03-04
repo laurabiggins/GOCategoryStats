@@ -1,0 +1,453 @@
+---
+title: "gene length biases"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(global.par = TRUE)
+```
+
+
+```{r}
+library("devtools")
+load_all("M:/GOcategoryStats")
+par(mgp = c(2, 0.5, 0))
+par(mar = par()$mar * 0.7)
+
+library(RColorBrewer)
+palette(brewer.pal(6, "Set2"))
+```
+
+Generate lists of mouse genes by length.
+
+##Pre-processing of data
+
+See closest_gene.Rmd - the generation of the genfo file was the same.
+We can use the genfo file created from that processing to generate the biased gene
+lists.
+
+It can also be imported in to the R session so that we can plot the gene length 
+distribution for all genes in the Mus_musculus.GRCm38.94.gtf.gz genome.
+
+###Check lengths of genes
+####Plot out the length distribution for all the genes in Mus_musculus.GRCm38.94
+```{r}
+genfo <- read.delim("M:/biased_gene_lists/Mus_musculus.GRCm38.94_gene_info.txt")
+bg_genes <- as.vector(unique(genfo$gene_name))
+
+plot(density(log2(genfo$length)), lwd = 2, main = "", xlab = "log2 gene length")
+```
+
+####Select gene length thresholds.
+
+```{r, results = FALSE}
+plot(density(log2(genfo$length)), 
+     lwd  = 2, 
+     main = "", 
+     xlab = "log2 gene length"
+)
+
+thresholds <- c(
+  very_short = 6.8, 
+  short1     = 7.6, 
+  short2     = 9.7, 
+  long       = 15, 
+  very_long  = 17
+)
+
+more_less <- c(
+  very_short = "less", 
+  short1     = "less", 
+  short2     = "interval", 
+  long       = "more", 
+  very_long  = "more"
+)
+
+sapply(names(thresholds), function(x){
+  colours <- as.factor(more_less)
+  abline(v = thresholds[x], col = colours[x], lwd = 2, lty = 2)
+})
+```
+
+
+```{r non_log_thresholds}
+2^thresholds
+```
+
+The number of genes that remain after filtering for each length category.
+
+```{r, fig.height = 6, results = FALSE, fig.width = 10}
+dens <- density(log2(genfo$length))
+
+par(mfrow = c(2, 3))
+
+sapply(names(thresholds), function(length_cat){
+
+  plot(dens, lwd = 2, xlab = "log2 gene length", main = length_cat)
+  
+  if (more_less[length_cat] == "less") {
+    filt <- dens$x < thresholds[length_cat]
+    polygon(
+      c(dens$x[filt], thresholds[length_cat]), 
+      c(dens$y[filt], 0), 
+      col = "grey"
+    )
+    n_genes <- sum(log2(genfo$length) < thresholds[length_cat])
+   
+  } else if (more_less[length_cat] == "more") {
+    filt <- dens$x > thresholds[length_cat]
+    polygon(
+      c(dens$x[filt], thresholds[length_cat]), 
+      c(dens$y[filt], 0), 
+      col = "grey"
+    )
+    n_genes <- sum(log2(genfo$length) > thresholds[length_cat])
+    
+  } else {
+    # hard code the interval plot
+     filt <- dens$x > thresholds["short1"] & dens$x < thresholds["short2"]
+     polygon(
+       c(thresholds["short1"], dens$x[filt], thresholds["short2"]), 
+       c(0, dens$y[filt], 0), 
+       col = "grey"
+     )
+     n_genes <- sum(log2(genfo$length) > thresholds["short1"] & log2(genfo$length) < thresholds["short2"] )
+  }
+   
+  label_text <- paste0("n = ", n_genes)
+  text(x = 19, y = 0.09, labels = label_text, cex = 1.5)
+})
+
+```
+
+
+
+###Pre-processing: Generating the biased gene lists on the cluster
+
+Filter the gene info/genfo file for length using the `filter_gene_info.pl`
+script that's in github.
+
+`wget https://raw.githubusercontent.com/laurabiggins/biases/master/processing/in_silico/filter_gene_info.pl`
+
+The script filters the gene info file, retaining all genes within the length categories,
+then randomly selects 200 genes (or alternative specified number). 
+This is repeated 100 times to get 100 sets of genes for each length category.
+
+working directory and location of files: 
+/bi/group/bioinf/Laura_B/bias_analysis/in_silico/in_silico_datasets
+
+`for i in {1..100}; do ./filter_gene_info.pl --max_length 111 Mus_musculus.GRCm38.94_gene_info.txt`
+`--number_of_genes 200 --output_file length/very_short/very_short_${i}; done`
+
+Extract the gene names and remove header         
+`for i in length/short/*; do cut -f2 $i | tail -n 200 > ${i}_just_genes.txt; done`
+`for i in length/long/*; do cut -f2 $i | tail -n 200 > ${i}_just_genes.txt; done`
+
+##R analysis       
+
+Import the biased gene lists.     
+```{r}
+all_long_files  <- list.files(path = "M:/biased_gene_lists/gene_lists/length_biased/long", 
+                    pattern = "just_genes.txt", full.names = TRUE)
+
+all_short_files <- list.files(path = "M:/biased_gene_lists/gene_lists/length_biased/short", 
+                    pattern = "just_genes.txt", full.names = TRUE)
+
+very_long_indices  <- sapply(all_long_files, grepl, pattern = "very_long") 
+very_short_indices <- sapply(all_short_files, grepl, pattern = "very_short") 
+short1_indices     <- sapply(all_short_files, grepl, pattern = "short1") 
+short2_indices     <- sapply(all_short_files, grepl, pattern = "short2") 
+
+very_long  <- lapply(all_long_files[very_long_indices], function(x) scan(x, what = "character"))
+long       <- lapply(all_long_files[!very_long_indices], function(x) scan(x, what = "character"))
+very_short <- lapply(all_short_files[very_short_indices], function(x) scan(x, what = "character"))
+short1     <- lapply(all_short_files[short1_indices], function(x) scan(x, what = "character"))
+short2     <- lapply(all_short_files[short2_indices], function(x) scan(x, what = "character"))
+
+biased_lengths <- list(very_long, long, short1, short2, very_short)
+names(biased_lengths) <- c("very_long", "long", "short1", "short2", "very_short")
+```
+
+Check they all look right
+```{r, fig.height = 5, fig.width = 7}
+par(mfrow = c(1, 1))
+
+gene_lengths <- lapply(biased_lengths, function(x) {
+  y       <- unique(unlist(x))
+  names   <- match(toupper(y), toupper(genfo$gene_name))
+  log2(genfo$length[names])
+})
+
+boxplot(gene_lengths, col = 1)
+
+```
+
+The odd gene that doesn't fall within the expected size range may be due to name 
+duplication.
+
+
+###GO overrepresentation analysis
+         
+Run the gene lists through a GO overrepresentation analysis.
+
+```{r, eval=FALSE}
+gene_length_results <- lapply(biased_lengths, function(length_subset){
+  
+  lapply(length_subset, function(query){
+    overrep_test(all_go_categories, query, bg_genes)#, mult_test = FALSE)
+  })
+})
+
+save(gene_length_results, file = "M:/GOcategoryStats/data/gene_length_results.rda")
+```
+
+We don't want to run the GO analysis each time the document is knitted as it takes
+too long. The code was run once and the data saved as an .rda object that can be 
+quickly loaded in to the R session.
+
+See how many significant categories were returned.
+```{r check_results}
+load("M:/GOcategoryStats/data/gene_length_results.rda")
+
+number_of_results <- lapply(gene_length_results, function(x){
+  nulls_removed <- x[lapply(x,length) != 0]
+  vapply(nulls_removed, nrow, FUN.VALUE = numeric(1))
+})  
+
+```
+
+The number of sets of genes in each category 
+```{r}
+sapply(biased_lengths, length)
+```
+
+The number of gene sets that returned significant results from the GO 
+overrepresentation analysis 
+```{r}
+sapply(number_of_results, length)
+```
+
+
+The bean plots show the number of categories returned from each gene list.
+The null results have been removed.
+```{r beanplots, fig.width = 10, fig.height = 6}
+par(mfrow = c(1,1))
+
+library(beanplot)
+options(scipen = 999) # disable the scientific notation
+
+beanplot(
+  number_of_results, 
+  what   = c(0,1,0,1), 
+  col    = c("#1B9E77","#06086d"), 
+  ll     = 0.03, 
+  method = "jitter", 
+  border = "#06086d",
+  las    = 1,
+  main   = "number of significant categories per gene list returned from GO analysis"
+)
+```
+          
+There are loads of results returned for the long genes, we'll plot out the p 
+and q values.
+```{r p_values, fig.height = 15, results = FALSE}
+p_and_q <- lapply(gene_length_results, function(x){
+  pvals <- unlist(sapply(x, `[[`, "pval"))
+  qvals <- unlist(sapply(x, `[[`, "adj_pval"))
+  data.frame(pvals, qvals)
+})
+
+par(mfrow = c(length(p_and_q), 2))
+
+
+plot_density_highlight <- function(data_values, 
+                                   xlabel    = "", 
+                                   threshold = 0.05, 
+                                   title     = "", 
+                                   colour    = 3
+                                   ){
+  
+  dens <- density(data_values)
+  filt <- dens$x < threshold 
+  
+  plot(dens, 
+    main = title, 
+    xlab = xlabel,
+    ylim = c(0, max(dens$y) * 1.2) 
+  )
+  polygon(
+      c(dens$x[filt], threshold), 
+      c(dens$y[filt], 0), 
+      col = colour
+    )
+  text_label = paste0("n = ", sum(data_values < threshold))
+  text(dens$x[length(dens$x)/10], 
+       y = max(dens$y) * 1.1, 
+       labels = text_label, 
+       font = 2, 
+       col  = "red2"
+       )
+}
+
+sapply(names(p_and_q), function(x) {  
+  
+  x_suffix <- paste0("values, N = ", nrow(p_and_q[[x]]))
+  
+  plot_density_highlight(p_and_q[[x]]$pvals, 
+                         title  = x, 
+                         xlabel = paste0("p ", x_suffix)
+  )
+
+  plot_density_highlight(p_and_q[[x]]$qvals, 
+                         title  = x, 
+                         xlabel = paste0("corrected p ", x_suffix)
+  )
+})
+
+
+```
+
+
+```{r}
+ordered_categories <- lapply(gene_length_results, function(length_subset){
+  
+  all_sig_categories <- unlist(sapply(length_subset, rownames))
+  tabled_categories  <- table(all_sig_categories)
+  tabled_categories[order(tabled_categories, decreasing = TRUE)]
+})
+
+#lapply(ordered_categories, head, n = 10)
+```
+
+
+Plot how many times a category appeared.
+```{r, fig.height=6, fig.width = 10, results=FALSE}
+par(mfrow = c(2, 3))
+sapply(names(ordered_categories), function(x){
+  plot(density(ordered_categories[[x]]), main = x)
+})
+```
+
+```{r beanplot2, fig.width = 10}
+par(mfrow = c(1,1))
+
+beanplot(
+  ordered_categories, 
+  what   = c(0,1,0,1), 
+  col    = c("#1B9E77","#06086d"), 
+  ll     = 0.03, 
+  method = "jitter", 
+  border = "#06086d",
+  las    = 1,
+  log    = "",
+  ylim   = c(0, 120),
+  main  = "number of times a GO category appeared during the 100 tests",
+  ylab  = "no of times GO category appeared"
+)
+
+text(1:length(ordered_categories), 
+     y   = 115, 
+     cex = 0.8, 
+     labels = paste0("n = ", sapply(ordered_categories, length))
+     )
+
+```
+
+Replot just showing the data for categories that appeared >= 10 times
+```{r beanplot_filtered, fig.width = 10}
+filtered_categories <- lapply(ordered_categories, function(x) x[x >= 10])
+
+beanplot(
+  filtered_categories, 
+  what   = c(0,1,0,1), 
+  col    = c("#1B9E77","#06086d"), 
+  ll     = 0.03, 
+  method = "jitter", 
+  border = "#06086d",
+  las    = 1,
+  log    = "",
+  ylim   = c(10, 120),
+  main   = "GO category appearances (>10)",
+  ylab   = "no of times GO category appeared"
+)
+
+text(1:length(ordered_categories), 
+     y   = 115, 
+     cex = 0.8, 
+     labels = paste0("n = ", sapply(filtered_categories, length))
+     )
+
+```
+
+
+```{r, fig.height=6, fig.width = 10, results=FALSE}
+par(mfrow = c(2, 3))
+sapply(names(filtered_categories), function(x){
+  plot(density(filtered_categories[[x]]), main = x)
+})
+```
+
+Now we could do with some stats to pick a cutoff for the number of times a 
+category appears. Let's just select an arbitrary value of 30 for now....
+
+Create a dataset that contains these suspect set of categories
+```{r}
+suspects <- lapply(ordered_categories, function(x) names(x[x >= 30]))  
+
+sapply(suspects, length)
+```  
+
+```{r}
+print_sums <- function(set1, set2, not_in = FALSE) {
+  ifelse(
+    not_in, 
+    print(sum(!set1 %in% set2)), 
+    print(sum(set1 %in% set2))
+  )
+}
+
+with(suspects, {
+  print_sums(short1, very_short)
+  print_sums(short1, very_short, TRUE)
+  print_sums(very_short, short2)
+  print_sums(long, very_long)
+  print_sums(long, very_long, TRUE)
+})
+```
+
+All of the categories in the short1 category are found in the very short category 
+so these can be reduced to one category.
+The short2 set do not overlap and can just be renamed to "short"
+
+The very_long and long categories have a lot of overlapping categories so I'll 
+remove any from the long category that are found in the very_long category.
+
+```{r}
+suspects$long <- with(suspects, long[!long %in% very_long])
+suspects$short1 <- NULL
+names(suspects) <- gsub(names(suspects), pattern = "short2", replacement = "short")
+sapply(suspects, length)
+```  
+
+
+```{r, eval=FALSE}
+# write out file with unix line endings
+for (i in 1:length(suspects)){
+  
+  filename <- paste0("M:/biased_gene_lists/identified_categories/", names(suspects)[i], ".txt")
+  output_file <- file(filename, "wb")
+  
+  write.table(
+    file      = output_file,
+    x         = suspects[[i]], 
+    row.names = FALSE,
+    col.names = FALSE, 
+    quote     = FALSE
+  )
+  
+  close(output_file)
+}
+```
+  

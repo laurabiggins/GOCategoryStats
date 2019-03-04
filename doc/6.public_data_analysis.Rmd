@@ -1,0 +1,173 @@
+---
+title: "6. Public data gene sets"
+output:
+  html_document:
+    df_print: paged
+---
+
+I have downloaded, mapped and counted reads over genes for 373
+public RNA seq datasets. There are 2 biological replicates for each sample. 
+The processing is detailed in a google drive markdown document 
+https://drive.google.com/open?id=1mT7xdzzMvhn3HX5joY7xB5opygs2IZPr
+
+The files SRRxxx_SRRxxx_counts_z_scores.txt_with_gene_name.txt
+contain all the genes (that had counts), so around 20,000 genes. For each gene 
+there is a quantitated value per sample, along with a z score, p-value and absolute z-score.
+The z-scores and p-values have been calculated using an R script that runs the
+intensity difference test from SeqMonk and gives each gene a z-score depending on 
+it's position in the distribution.
+
+
+1. Take the top 200 different genes and run them through a GO analysis.
+2. Take genes that have a z-score higher than a certain threshold and re-run with these.
+
+`for i in SRR*gene_name.txt; do head -n 201 $i | cut -f1 - | tail -n 200 > ${i}_top_200.txt; done
+rename _counts_z_scores.txt_with_gene_name.txt_top_200.txt _top_200.txt *top_200.txt`
+
+##!!Get some GO category stats for the suspect GO categories - that was the main 
+idea behind this package!!
+
+
+```{r}
+library("devtools")
+#load_all("C:/Users/bigginsl/Documents/GOcategoryStats")
+load_all("M:/GOcategoryStats")
+```
+
+##The 200 genes from each pair of samples that have the highest z-scores
+
+```{r}
+#files <- list.files(path = "D:/projects/biases/public_data/top_200", pattern = "top_200.txt", full.names = TRUE)
+files <- list.files(path = "M:/biased_gene_lists/public_data/top_200", pattern = "top_200.txt", full.names = TRUE)
+top200 <- lapply(files, function(x) scan(x, what = "character"))
+
+genfo <- read.delim("M:/biased_gene_lists/Mus_musculus.GRCm38.94_gene_info.txt")
+bg_genes <- as.vector(unique(genfo$gene_name))
+```
+
+There are 373 sets of genes here so I don't want to examine each of the gene lists.
+I'll run them through a GO overrepresentation analysis.
+
+```{r, eval=FALSE}
+go_results <- overrep_test(all_go_categories, top200[[1]], bg_genes)
+head(go_results)
+
+public_data_results <- lapply(top200, function(query){
+  overrep_test(all_go_categories, query, bg_genes)
+  })
+
+#save(all_go_results, file = "D:/projects/biases/public_data/all_go_results.rda")
+save(all_go_results, file = "M:/GOcategoryStats/data/all_go_results_closest_gene.rda")
+# took 7-8 mins to run for 373 datasets so I'm saving the file rather than
+# re-running this every time it gets knitted.
+```
+   
+ 
+```{r}
+load("M:/GOcategoryStats/data/all_go_results.rda")
+all_sig_categories <- unlist(sapply(all_go_results, rownames))
+tabled_categories <- table(all_sig_categories)
+ordered_categories <- tabled_categories[order(tabled_categories, decreasing = TRUE)]
+filename <- paste0("GO_summary_", length(top200), "_datasets.txt" )
+write.table(x = ordered_categories, filename, quote = FALSE, row.names = FALSE, sep = "\t")
+```
+
+Now we could do with some stats to pick a cutoff for the number of times a 
+category appears. Let's just select an arbitrary value of 50 for now....
+
+##Create a dataset that contains these suspect set of categories
+```{r}
+suspects_top200 <- ordered_categories[ordered_categories >= 50]
+
+# convert to proportions 
+suspects1 <- signif(suspects_top200/length(top200), digits = 2) 
+
+# just save the names
+suspects1 <- names(suspects1)
+
+head(suspects1)
+```
+
+```{r, eval=FALSE}
+save(suspects1, file = "M:/GOcategoryStats/data/suspects1.rda")
+```
+
+
+Have a quick look at the genes in the top categories
+```{r}
+file_location <- "http://download.baderlab.org/EM_Genesets/current_release/Mouse/symbol/Mouse_GO_AllPathways_no_GO_iea_December_01_2018_symbol.gmt"
+
+functional_categories <- process_GMT(file_location, max_genes = 20000)
+which(names(functional_categories) %in% names(suspects1[1]))
+
+# Look up the genes from the category
+# get the genes from the top category
+top_cat <- get_GO_sets(names(suspects1)[1], functional_categories)
+top_cat <- top_cat[[1]]
+
+# plot lengths
+#query_lengths <- get_lengths(query_filt, gene_info)
+
+gene_info <- parse_GTF_info(m_musculus)
+head(gene_info)
+
+bg_lengths <- get_lengths(bg_genes, gene_info)
+
+top_cat_lengths <- get_lengths(top_cat, gene_info)
+
+my_plotting_data <- list(background = bg_lengths, top_cat = top_cat_lengths)
+density_plot(my_plotting_data, log = TRUE, main  = "gene lengths")
+
+
+for (i in 1:5) {
+  top_cat <- get_GO_sets(names(suspects1)[i], functional_categories)
+  top_cat_lengths <- get_lengths(top_cat[[1]], gene_info)
+
+  my_plotting_data <- list(background = bg_lengths, top_cat = top_cat_lengths)
+  density_plot(my_plotting_data, log = TRUE, main  = "gene lengths")
+}
+
+
+```
+
+```{r, warning = FALSE}
+bg_chr <- get_chromosomes(bg_genes, gene_info)
+top_cat_chr <- get_chromosomes(top_cat, gene_info)
+
+chr_list <- list(background = bg_chr, top_cat = top_cat_chr)
+
+chr_proportions <- get_chr_percentage(chr_list)
+
+bar_plot(chr_proportions, main = "chr", col = topo.colors(ncol(chr_proportions), alpha = 0.5), cex_names = 0.6)
+```
+
+
+##Create another set of suspects but using a z-score cut-off as some of the 
+replicates had very tight distributions so we may not want to include those.
+I'm not sure about this - I'm going to leave it for now.
+
+use awk to filter in unix
+`echo "" > z5.txt
+for i in *_gene_name.txt; do awk '$7>5 {print $1}' $i >> z5.txt ; done`
+
+This would work in a different way as there could be wildly varying numbers of 
+genes per dataset. This would be more of a case of getting a list of suspect genes
+rather than suspect categories, and then maybe generating a set of suspect categories 
+from the genes.
+
+```{r, eval = FALSE}
+zfile <- "D:/projects/biases/public_data/top_zscores/z5.txt"
+z5 <- scan(zfile, what = "character")
+
+x_ordered <- table(z5)[order(table(z5), decreasing = TRUE)]
+
+
+df <- data.frame(x_ordered)
+colnames(df) <- c("gene_name", "count")
+```
+
+
+
+
+
+

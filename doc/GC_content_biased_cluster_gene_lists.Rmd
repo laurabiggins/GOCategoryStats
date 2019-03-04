@@ -1,0 +1,170 @@
+---
+title: "Generating gene lists: GC biases in mouse"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+library("devtools")
+load_all("M:/GOcategoryStats")
+```
+
+####Creating lists of mouse genes biased by GC content.
+To generate the lists, a file containing the GC content of all the genes in the
+mouse genome is required.
+
+
+We're only doing high and low GC content, I've previously looked at other GC 
+intervals and didn't find any biases.
+
+##Pre-processing of data on cluster
+
+The script create_gene_info_file_from_gtf.pl takes a gtf file and parses it to
+create a gene info file that contains all the genes that are annotated in the 
+gtf file. This should be all the genes in that version of the genome.
+
+
+/bi/group/bioinf/Laura_B/bias_analysis/in_silico/in_silico_datasets/GC
+
+Downloaded the raw version of the file from github
+`wget https://raw.githubusercontent.com/s-andrews/GOliath/master/processing/`
+`gene_info_processing/create_gene_info_file_from_gtf.pl`
+
+Run this script to create the gene info file
+`perl create_gene_info_file_from_gtf.pl --gtf Mus_musculus.GRCm38.94.gtf.gz --genome GRCm38`
+
+We'll import the gene info file so that we can plot the GC distribution for all 
+genes in the Mus_musculus.GRCm38.94.gtf.gz genome.
+There are import_GTF and parse_GTF_info functions within the GOcategoryStats 
+package but to get genome information i.e. GC content, the parsing and lookups 
+need to be done with access to genome information, so on the cluster. 
+The import_GTF and parse_GTF_info functions just work with the gtf file itself.
+
+
+Plot out the GC distribution for all the genes in Mus_musculus.GRCm38.94
+```{r}
+genfo <- read.delim("M:/biased_gene_lists/Mus_musculus.GRCm38.94_gene_info.txt")
+
+plot(density(genfo$GC_content), lwd = 2, main = "", xlab = "GC content", xlim = c(0.25,0.75))
+```
+
+###Further pre-processing: Generating the biased gene lists
+
+Filter the gene info/genfo file for high and low GC contents using the `filter_gene_info.pl`
+script that's in github.
+
+`wget https://raw.githubusercontent.com/laurabiggins/biases/master/processing/in_silico/filter_gene_info.pl`
+
+There are `r sum(genfo$GC_content < 0.4)` genes with a GC content < 0.4. 
+
+The script filters the gene info file, retaining all genes with a GC content < 0.4,
+then randomly selects 200 genes (or alternative specified number). 
+This is repeated 100 times to get 100 sets of genes.
+
+`for i in {1..100}; do ./filter_gene_info.pl --max_GC 0.39999 Mus_musculus.GRCm38.94_gene_info.txt`
+`--number_of_genes 200 --output_file lowGC_${i}; done`
+
+Extract the gene names and remove header         
+`for i in lowGC*; do cut -f2 $i | tail -n 200 > ${i}_just_genes.txt; done`
+
+
+##R analysis       
+
+Import the biased gene lists.     
+```{r}
+files <- list.files(path = "M:/biased_gene_lists/GC_content_biased/lowGC", 
+                    pattern = "just_genes.txt", full.names = TRUE)
+lowGC <- lapply(files, function(x) scan(x, what = "character"))
+```
+
+###GO overrepresentation analysis
+         
+Run the gene lists through a GO overrepresentation analysis.
+
+```{r, eval=FALSE}
+go_results <- overrep_test(all_go_categories, lowGC[[1]], bg_genes)
+head(go_results)
+
+all_go_results <- lapply(lowGC, function(query){
+  overrep_test(all_go_categories, query, bg_genes)
+  })
+
+save(all_go_results, file = "M:/GOcategoryStats/data/lowGC_results.rda")
+# this only took a minute or 2 but still worth saving
+```
+  
+We don't want to run the analysis each time the document is knitted as it takes
+too long. The code was run once and the data saved as an .rda object that can be 
+quickly loaded in to the R session.
+ 
+```{r}
+load("M:/GOcategoryStats/data/lowGC_results.rda")
+all_sig_categories <- unlist(sapply(all_go_results, rownames))
+tabled_categories  <- table(all_sig_categories)
+ordered_categories <- tabled_categories[order(tabled_categories, decreasing = TRUE)]
+head(ordered_categories, n = 10)
+```
+
+Now we could do with some stats to pick a cutoff for the number of times a 
+category appears. Let's just select an arbitrary value of 15 for now....
+
+Create a dataset that contains these suspect set of categories
+```{r}
+suspects_lowGC <- ordered_categories[ordered_categories >= 15]
+
+# convert to proportions 
+suspects_lowGC <- signif(suspects_lowGC/length(suspects_lowGC), digits = 2) 
+
+suspects_lowGC <- names(suspects_lowGC)
+
+head(suspects_lowGC)
+```  
+  
+```{r, eval=FALSE}
+save(suspects_lowGC, file = "M:/GOcategoryStats/data/suspects_lowGC.rda")
+
+writeClipboard(suspects_lowGC)
+```
+  
+  
+##High GC  
+
+Didn't get any significant categories using GC > 0.55 or 0.6, though I did before 
+- it may be that the filters such as the max number of genes is too strict?
+
+`for i in {1..100}; do ../filter_gene_info.pl --max_GC 0.6 ../Mus_musculus.GRCm38.94_gene_info.txt` 
+`--number_of_genes 200 --output_file highGC_0.6_${i}; done`
+
+Extract the gene names and remove header
+`for i in highGC*; do cut -f2 $i | tail -n 200 > ${i}_just_genes.txt; done`
+
+```{r lenient_go_categories, eval = FALSE}
+#file <- "http://download.baderlab.org/EM_Genesets/current_release/Mouse/symbol/Mouse_GO_AllPathways_no_GO_iea_December_01_2018_symbol.gmt"
+#' x <- processGMTFile(file, 5, 5000)
+#more_go_categories <- process_GMT(file, 3, 10000)
+```
+
+
+```{r}
+sum(genfo$GC_content >= 0.6)
+files <- list.files(path = "D:/projects/biases/GC_content_biased/highGC", pattern = ".txt", full.names = TRUE)
+highGC <- lapply(files, function(x) scan(x, what = "character"))
+```
+
+
+```{r, eval=FALSE}
+go_results1 <- overrep_test(all_go_categories, highGC[[1]], bg_genes, mult_test = FALSE, pval_threshold = 0.2)
+go_results <- overrep_test(more_go_categories, highGC[[1]], bg_genes, pval_threshold = 1)
+head(go_results)
+
+all_go_results <- lapply(highGC, function(query){
+  overrep_test(all_go_categories, query, bg_genes, mult_test = FALSE)
+  })
+
+all_sig_categories <- unlist(sapply(all_go_results, rownames))
+tabled_categories <- table(all_sig_categories)
+ordered_categories <- tabled_categories[order(tabled_categories, decreasing = TRUE)]
+head(ordered_categories)
+```
+

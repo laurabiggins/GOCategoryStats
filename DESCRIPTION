@@ -1,0 +1,14 @@
+Package: GOcategoryStats
+Type: Package
+Title: Provides statistics for Gene Ontology categories (Title Case)
+Version: 0.1.0
+Author: Laura Biggins
+Maintainer: Laura Biggins <laura.biggins@babraham.ac.uk>
+Description: More about what it does (maybe more than one line)
+    Use four spaces when indenting paragraphs within the Description.
+License: What license is it under?
+Encoding: UTF-8
+LazyData: true
+Imports: fastmatch, data.table, plyr, R.utils
+RoxygenNote: 6.1.1
+Roxygen: list(markdown = TRUE)

@@ -1,0 +1,376 @@
+---
+title: "Chromosome Biases"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width = 10)
+knitr::opts_knit$set(global.par = TRUE)
+```
+
+```{r, include = FALSE}
+# my laptop doesn't really like working on the network from home, it's better to 
+# copy the files to the computer and access them from there. This should make it 
+# easier to switch between
+using_laptop <- FALSE
+```
+
+
+```{r}
+par(mgp = c(2, 0.5, 0))
+par(mar = par()$mar * 0.7)
+library("devtools")
+
+ifelse(using_laptop,
+       load_all("C:/Users/bigginsl/Desktop/temp/GOcategoryStats"),
+       load_all("M:/GOcategoryStats")
+       )
+
+library(RColorBrewer)
+palette(brewer.pal(6, "Paired"))
+
+genome <- "Mus_musculus.GRCm38.94"
+```
+
+Generate lists of mouse genes by chromosome.
+
+##Pre-processing of data
+
+See closest_gene.Rmd - the generation of the genfo file was the same.
+We can use the genfo file created from that processing to generate the biased gene
+lists.
+
+Some other lists were generated on the cluster as the processing was fairly complicated.
+In particular, generating the sets of "closest genes" to random positions.
+I also have a script that quickly filters on various parameters, so have used 
+that for generating some gene lists. 
+
+To produce the lists of genes per chromosome, I'll do that within R as it's fairly
+simple and means not having to use the cluster and move more files around.
+
+####Plot the number of genes on each chromosome in Mus_musculus.GRCm38.94
+```{r, fig.width = 10}
+ifelse(using_laptop, 
+       genfo <- read.delim("C:/Users/bigginsl/Desktop/temp/biased_gene_lists/Mus_musculus.GRCm38.94_gene_info.txt"),
+       genfo <- read.delim("M:/biased_gene_lists/Mus_musculus.GRCm38.94_gene_info.txt")
+       )
+
+bg_genes <- as.vector(unique(genfo$gene_name))
+
+chr_order <- c(1:19, "MT", "X", "Y")
+chr_table <- table(genfo$chromosome)
+reordering <- match(chr_order, names(chr_table))
+chr_table <- chr_table[reordering]
+
+barplot(chr_table, 
+        cex.names = 0.8, 
+        las  = 1,
+        ylab = "no of genes",
+        main = paste0("number of genes per chromosome  in ", genome), 
+        col  = 1
+        )
+```
+
+####Randomly select 200 genes from each chromosome.
+
+```{r}
+res <- tapply(genfo$gene_name, INDEX = genfo$chromosome, FUN = function(x){
+  sapply(1:100, function(i){
+    x[ceiling(runif(200, min = 0, max = length(x)))]
+  })  
+})
+
+#save(res, file = "M:/temp/chr/res.rda")
+
+```
+
+
+Check they all look right
+```{r, fig.height=9}
+head(genfo[match(res[["4"]][,5], genfo$gene_name),])
+tail(genfo[match(res[["16"]][,5], genfo$gene_name),])
+head(genfo[match(res[["X"]][,5], genfo$gene_name),])
+```
+
+###GO overrepresentation analysis
+         
+Run the gene lists through a GO overrepresentation analysis.
+
+```{r, eval=FALSE}
+go_results1 <- overrep_test(all_go_categories, res[[1]][,1], bg_genes)
+go_results1
+
+chr_results <- lapply(res, function(chr_subset){
+  
+  apply(chr_subset, MARGIN = 2, function(query){
+    overrep_test(all_go_categories, query, bg_genes)#, mult_test = FALSE)
+  })
+})
+
+save(chr_results, file = "M:/GOcategoryStats/data/chr_results.rda")
+```
+
+We don't want to run the GO analysis each time the document is knitted as it takes
+too long. The code was run once and the data saved as an .rda object that can be 
+quickly loaded in to the R session.
+
+See how many significant categories were returned.
+```{r check_results}
+ifelse(using_laptop, 
+       load("C:/Users/bigginsl/Desktop/temp/GOcategoryStats/data/chr_results.rda"),
+       load("M:/GOcategoryStats/data/chr_results.rda")
+)
+
+
+number_of_results <- lapply(chr_results, function(x){
+  nulls_removed <- x[lapply(x,length) != 0]
+  vapply(nulls_removed, nrow, FUN.VALUE = numeric(1))
+})  
+
+```
+
+Remove null lists from chr_results
+
+```{r}
+chr_results <- lapply(chr_results, function(x){
+  x[!sapply(x, is.null)]
+})  
+```
+
+```{r}
+# convert list of table to list of vectors
+convert_tbl_vec <- function(list_of_tables){
+  list_of_vec <- lapply(names(list_of_tables), function(x){
+  
+    vector <- as.vector(list_of_tables[[x]])
+    names(vector) <- names(list_of_tables[[x]])
+    vector
+  })
+  names(list_of_vec) <- names(list_of_tables)
+  list_of_vec
+}
+```
+
+The number of gene sets that returned significant results from the GO 
+overrepresentation analysis 
+```{r}
+number_of_results <- convert_tbl_vec(number_of_results)
+# reorder
+number_of_results <- number_of_results[match(chr_order, names(number_of_results))]
+
+sapply(number_of_results, length)
+```
+
+The box plots show the number of categories returned from each gene list.
+The null results have been removed.
+
+The beanplot won't work 
+"Error in bw.SJ(x, method = "dpi") : sample is too sparse to find TD"
+
+```{r boxplot}
+boxplot(number_of_results, 
+        main = "number of overrepresented GO categories for each gene list",
+        ylab = "no of categories",
+        xlab = "chromosome",
+        pch = 16,
+        cex = 0.5,
+        col = 1
+        )
+```
+          
+### Looking at p and q value thresholds
+Plot out the p and q values.
+```{r p_values, fig.height = 30, results = FALSE, eval = FALSE}
+p_and_q <- lapply(chr_results, function(x){
+  pvals <- unlist(sapply(x, `[[`, "pval"))
+  qvals <- unlist(sapply(x, `[[`, "adj_pval"))
+  data.frame(pvals, qvals)
+})
+
+par(mfrow = c(11, 4))
+
+plot_density_highlight <- function(data_values, 
+                                   xlabel = "", 
+                                   threshold = 0.05, 
+                                   title = "", 
+                                   colour = 5){
+  dens <- density(data_values)
+  filt <- dens$x < threshold 
+  
+  plot(dens, 
+    main = title, 
+    xlab = xlabel,
+    ylim = c(0, max(dens$y) * 1.2) 
+  )
+  polygon(
+      c(dens$x[filt], threshold), 
+      c(dens$y[filt], 0), 
+      col = colour
+    )
+  text_label = paste0("n = ", sum(data_values < threshold))
+  text(dens$x[length(dens$x)/10], 
+       y = max(dens$y) * 1.1, 
+       labels = text_label, 
+       font = 2, 
+       col  = "red2")
+}
+
+
+sapply(chr_order, function(x) {  
+  
+  x_suffix <- paste0("values, N = ", nrow(p_and_q[[x]]))
+  chr_name <- paste0("Chr ", x)
+  
+  plot_density_highlight(p_and_q[[x]]$pvals, 
+                         title  = chr_name, 
+                         xlabel = paste0("p ", x_suffix)
+  )
+
+  plot_density_highlight(p_and_q[[x]]$qvals, 
+                         title  = chr_name, 
+                         xlabel = paste0("corrected p ", x_suffix)
+  )
+})
+
+```
+
+
+```{r}
+ordered_categories <- lapply(chr_results, function(chr_subset){
+  
+  all_sig_categories <- unlist(sapply(chr_subset, rownames))
+  tabled_categories  <- table(all_sig_categories)
+  tabled_categories[order(tabled_categories, decreasing = TRUE)]
+})
+
+#lapply(ordered_categories, head, n = 10)
+```
+
+### Determining thresholds for the number of times a category appears.
+If a GO category is only found in one of the 100 tests, we do not want to 
+flag that up as a suspect category, but how many times should it appear for us
+to include it in the suspect list?
+
+```{r, fig.height=16, results=FALSE, eval = FALSE}
+par(mfrow = c(6,4))
+#sapply(names(ordered_categories), function(x){
+sapply(chr_order, function(x){
+  plot(density(ordered_categories[[x]]), main = x)
+})
+```
+
+```{r}
+par(mfrow = c(1,1))
+ordered_categories_vec <- convert_tbl_vec(ordered_categories) 
+ordered_categories_vec <- ordered_categories_vec[match(chr_order, names(ordered_categories_vec))]
+
+boxplot(ordered_categories_vec, 
+        main = "number of times a GO category appeared during the 100 tests",
+        ylab = "no of times GO category appeared",
+        xlab = "chromosome",
+        pch = 16,
+        cex = 0.5,
+        col = 1,
+        cex.axis = 0.8,
+        ylim = c(0, 110)
+        )
+
+text(1:22, 
+     y   = 108, 
+     cex = 0.8, 
+     col = 2,
+     labels = sapply(ordered_categories_vec, length)
+     )
+
+```
+
+
+Replot just showing the data for categories that appeared >= 10 times
+
+```{r}
+filtered_categories <- lapply(ordered_categories, function(x) x[x >= 10])
+
+filtered_categories_vec <- convert_tbl_vec(filtered_categories) 
+filtered_categories_vec <- filtered_categories_vec[match(chr_order, names(filtered_categories_vec))]
+
+boxplot(filtered_categories_vec,
+        main = "GO category appearances (>10)",
+        ylab = "no of times GO category appeared",
+        xlab = "chromosome",
+        pch  = 16,
+        cex  = 0.5,
+        col  = 1,
+        cex.axis = 0.8,
+        ylim = c(10, 110)
+        )
+
+text(1:22, 
+     y   = 108, 
+     cex = 0.8, 
+     col = 2,
+     labels = sapply(filtered_categories_vec, length)
+     )
+        
+```
+
+p values and number of occurrences of categories.
+
+```{r}
+chr_results
+
+filtered_categories <- filtered_categories[sapply(filtered_categories, length) > 0]
+
+
+p_and_q <- lapply(chr_results, function(x){
+  pvals <- unlist(sapply(x, `[[`, "pval"))
+  qvals <- unlist(sapply(x, `[[`, "adj_pval"))
+  data.frame(pvals, qvals)
+})
+```
+
+
+
+Now we could do with some stats to pick a cutoff for the number of times a 
+category appears. Let's just select an arbitrary value...
+
+Create a dataset that contains these suspect set of categories
+```{r}
+suspects <- lapply(ordered_categories, function(x) names(x[x >= 10]))  
+
+sapply(suspects, length)
+```  
+
+We don't need empty files so remove categories with no results.
+```{r}
+suspects <- suspects[sapply(suspects, length) > 0]
+sapply(suspects, length)
+```
+
+
+
+```{r, eval=FALSE}
+# write out file with unix line endings
+for (i in 1:length(suspects)) {
+  
+   ifelse(using_laptop,
+          filename <- paste0("M:/biased_gene_lists/identified_categories/chr", names(suspects)[i], ".txt"),
+          filename <- paste0("C:/Users/bigginsl/Desktop/temp/biased_gene_lists/identified_categories/chr", names(suspects)[i], ".txt")
+   )
+ 
+  output_file <- file(filename, "wb")
+  #output_file <- file(filename)
+  
+  write.table(
+    file      = output_file,
+    x         = suspects[[i]], 
+    row.names = FALSE,
+    col.names = FALSE, 
+    quote     = FALSE
+  )
+  
+  close(output_file)
+}
+```
+  

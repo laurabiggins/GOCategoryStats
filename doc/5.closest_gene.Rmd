@@ -79,7 +79,7 @@ bg_genes <- as.vector(unique(genfo$gene_name))
 
 We're going to run the overrepresentation test with no multiple testing correction,
 as we want to see which categories come up the most frequently, rather than whether 
-they are hihgly significant.
+they are highly significant.
 ```{r overrep, eval = FALSE}
 go_results1 <- overrep_test(all_go_categories, closest[[1]], bg_genes)
 go_results1

@@ -1,8 +1,9 @@
 ---
-title: "Generating biased gene lists : pre-processing"
+title: 'Generating biased gene lists : pre-processing'
 author: "Laura Biggins"
 date: "4 March 2019"
 output:
+  pdf_document: default
   html_document:
     df_print: paged
 ---

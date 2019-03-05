@@ -1,8 +1,10 @@
 ---
-title: "1. Length biased gene sets"
+title: "1.Length biased gene sets"
 author: "Laura Biggins"
 date: "4 March 2019"
 output:
+  pdf_document: default
+  word_document: default
   html_document:
     df_print: paged
 ---
@@ -11,6 +13,7 @@ output:
 knitr::opts_knit$set(global.par = TRUE)
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 ```
+
 
 ```{r, include = FALSE}
 # my laptop doesn't really like working on the network from home, it's better to 
@@ -490,7 +493,7 @@ sapply(suspects, length)
 ```{r}
 #, eval=FALSE}
 # write out file with unix line endings
-for (i in 1:length(suspects)){
+for (i in 1:length(suspects)) {
   
   ifelse(using_laptop,
          filename <- paste0("C:/Users/bigginsl/Desktop/temp/biased_gene_lists/identified_categories/", names(suspects)[i], ".txt"),

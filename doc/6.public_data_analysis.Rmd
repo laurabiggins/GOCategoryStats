@@ -146,7 +146,7 @@ head(go_results)
 
 public_data_results <- lapply(top200, function(query){
   overrep_test(all_go_categories, query, bg_genes)
-  })
+})
 
 #save(all_go_results, file = "D:/projects/biases/public_data/all_go_results.rda")
 save(all_go_results, file = "M:/GOcategoryStats/data/all_go_results_closest_gene.rda")

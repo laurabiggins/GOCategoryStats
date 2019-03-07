@@ -1,5 +1,5 @@
 ---
-title: "2. High transcript biased gene sets"
+title: "2.High transcript biased gene sets"
 output:
   html_document:
     df_print: paged
@@ -7,24 +7,21 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_knit$set(global.par = TRUE)
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 ```
 
 ```{r, include = FALSE}
 # my laptop doesn't really like working on the network from home, it's better to 
 # copy the files to the computer and access them from there. This should make it 
 # easier to switch between
-using_laptop <- TRUE
+using_laptop <- FALSE
 ```
 
 ```{r}
 library("devtools")
-ifelse(using_laptop,
-       load_all("C:/Users/bigginsl/Desktop/temp/GOcategoryStats"),
-       load_all("M:/GOcategoryStats")
-       )
-#load_all("C:/Users/bigginsl/Desktop/temp/GOcategoryStats")
-#load_all("M:/GOcategoryStats")
+
+load_all()
+
 par(mgp = c(2, 0.5, 0))
 par(mar = par()$mar * 0.7)
 library(RColorBrewer)
@@ -34,22 +31,29 @@ genome <- "Mus_musculus.GRCm38.94"
 ```
 
 Generate lists of mouse genes by number of transcripts.
+In the mouse genome, most genes have only one transcript, but 
+Do genes with high numbers of transcripts 
+more power, more reads 
+
+
 
 ###Pre-processing of data on cluster
 
-See closest_gene.Rmd - the generation of the genfo file was the same.
-We can use the genfo file created from that processing to generate the biased gene
-lists.
+Import the genfo file as described in 0.Generating biased gene lists : pre-processing. 
 
-It can also be imported in to the R session so that we can plot the distribution 
-of the number of transcripts per gene in the `r genome` genome.
+This can be used to plot the distribution of the number of transcripts per gene 
+in the `r genome` genome.
 
 ###Number of transcripts per gene in `r genome`
 ```{r}
-x <- ifelse(using_laptop,
-       genfo <- read.delim("C:/Users/bigginsl/Desktop/temp//biased_gene_lists/Mus_musculus.GRCm38.94_gene_info.txt"),
-       genfo <- read.delim("M:/biased_gene_lists/Mus_musculus.GRCm38.94_gene_info.txt")
-)
+#x <- ifelse(using_laptop,
+##       genfo <- read.delim("C:/Users/bigginsl/Desktop/temp//biased_gene_lists/Mus_musculus.GRCm38.94_gene_info.txt"),
+#       genfo <- read.delim("M:/biased_gene_lists/Mus_musculus.GRCm38.94_gene_info.txt")
+#)
+
+genfo_file_name <- paste0("../data/", genome, "_gene_info.txt")
+#genfo <- read.delim("../data/Mus_musculus.GRCm38.94_gene_info.txt")
+genfo <- read.delim(genfo_file_name)
 bg_genes <- as.vector(unique(genfo$gene_name))
 
 hist(genfo$no_of_transcripts, 
@@ -67,40 +71,83 @@ get actual numbers.
 table(genfo$no_of_transcripts)
 ```
 
-`r ceiling(table(genfo$no_of_transcripts)["1"] / sum(genfo$no_of_transcripts) *100)`% 
+`r ceiling(table(genfo$no_of_transcripts)["1"] / nrow(genfo) *100)`% 
 of genes only have one transcript. 
-`r ceiling(table(genfo$no_of_transcripts)["2"] / sum(genfo$no_of_transcripts) *100)`% 
+`r ceiling(table(genfo$no_of_transcripts)["2"] / nrow(genfo) *100)`% 
 of genes have two transcripts. 
 I'm not interested in these so I'll replot the data and see how it looks without 
 these values.
-Above 40 there are only a couple of genes so this can be removed from the plot to 
-see it better
+Above 30 there are only a handful of genes so these can be removed from the plot to 
+see it better.
 
 ```{r, fig.width = 10}
-hist(genfo$no_of_transcripts[genfo$no_of_transcripts > 2], 
-     main = paste0("number of transcripts (> 2) per gene in ", genome), 
-     xlab = "number of transcripts (> 2)",
-     breaks = 24,
-     col = 1,
-     xlim = c(3, 30)
-     )
+#hist(genfo$no_of_transcripts[genfo$no_of_transcripts > 2], 
+#     main = paste0("number of transcripts (> 2) per gene in ", genome), 
+#     xlab = "number of transcripts (> 2)",
+#     breaks = 12,
+#     col = 1,
+#     xlim = c(3, 30)
+#     )
+
+library("ggplot2")
+genfo_temp <- genfo[genfo$no_of_transcripts > 2 & genfo$no_of_transcripts <= 30,]
+ggplot(genfo_temp , aes(x = no_of_transcripts)) + geom_histogram(fill = "seagreen", binwidth = 1, color = "darkblue")
+
 ```
 
+The first set of thresholds that I generated
 ```{r}
-sum(genfo$no_of_transcripts >= 10)
-sum(genfo$no_of_transcripts >= 15)
-sum(genfo$no_of_transcripts >= 20)
+thresholds <- c("10" = 10, "15" = 15, "20" = 20)
+sapply(thresholds, function(x) sum(genfo$no_of_transcripts >= x))
 ```
-
 As there are only `r sum(genfo$no_of_transcripts >= 20)` genes with more that 20
 transcripts, I won't include this category as the gene lists I'm using contain 
 200 genes.
 When I did test a min20 category, almost all the categories came up in the min15
 set too.
 
+
+####Generating thresholds using the distribution of the data rather than just picking arbitrary thresholds.
+This method is more robust for applying to different species and future versions 
+of this genome.
+```{r}
+probabilities <-  c(0.9, 0.95, 0.99)
+transcript_thresholds <- quantile(genfo$no_of_transcripts, probs = probabilities)
+gene_counts <- sapply(transcript_thresholds, function(x) sum(genfo$no_of_transcripts >= x))
+
+thresholds <- data.frame(transcript_thresholds, probabilities, gene_counts)
+thresholds
+```
+
+
+```{r, eval = FALSE}
+ggplot(genfo, aes(x = no_of_transcripts)) + geom_histogram(fill = "seagreen", binwidth = 1, color = "darkblue") + scale_y_log10()
+
+ggplot(genfo, aes(x = no_of_transcripts)) + geom_freqpoly(binwidth = 3) + scale_y_log10()
+```
+
+
+```{r}
+dens <- density(genfo$no_of_transcripts, adjust = 5)
+plot(dens, xlim = c(-2,30))
+```
+
 ###Generating the biased gene lists within R
 
 ```{r generate_gene_lists}
+all_genes_in_group <- sapply(thresholds$transcript_thresholds, function(x){
+  genfo$gene_name[genfo$no_of_transcripts >= x]
+})
+names(all_genes_in_group) <- thresholds$probabilities
+
+biased_transcripts <- lapply(names(all_genes_in_group), function(x){
+  sapply(1:100, function(i){
+    all_genes_in_group[[x]][ceiling(runif(200, min = 0, max = length(all_genes_in_group[[x]]) - 1))]
+  })
+})
+```
+
+```{r, eval = FALSE}
 all_min10 <- genfo$gene_name[genfo$no_of_transcripts >= 10]
 all_min15 <- genfo$gene_name[genfo$no_of_transcripts >= 15]
 

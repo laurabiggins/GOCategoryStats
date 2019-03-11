@@ -3,8 +3,6 @@ title: "1.Length biased gene sets"
 author: "Laura Biggins"
 date: "4 March 2019"
 output:
-  pdf_document: default
-  word_document: default
   html_document:
     df_print: paged
 ---
@@ -14,28 +12,16 @@ knitr::opts_knit$set(global.par = TRUE)
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 ```
 
-
-```{r, include = FALSE}
-# my laptop doesn't really like working on the network from home, it's better to 
-# copy the files to the computer and access them from there. This should make it 
-# easier to switch between
-using_laptop <- FALSE
-```
-
-
 ```{r}
-library("devtools")
-ifelse(using_laptop,
-       load_all("C:/Users/bigginsl/Desktop/temp/GOcategoryStats"),
-       load_all("M:/GOcategoryStats")
-       )
+library(devtools)
+load_all()
+library(RColorBrewer)
+palette(brewer.pal(6, "Set2"))
 
 par(mgp = c(2, 0.5, 0))
 par(mar = par()$mar * 0.7)
 
-library(RColorBrewer)
-palette(brewer.pal(6, "Set2"))
-
+genome <- "Mus_musculus.GRCm38.94"
 ```
 
 Generate lists of mouse genes biased by the length of the genes.
@@ -44,20 +30,18 @@ Generate lists of mouse genes biased by the length of the genes.
 
 The gene info file contains the lengths of all the genes in the mouse genome. 
 These can be plotted so that some thresholds for length categories can be determined.
+```{r}
+genfo_file_name <- paste0("../data/", genome, "_gene_info.txt")
+genfo <- read.delim(genfo_file_name)
+bg_genes <- as.vector(unique(genfo$gene_name))
+```
 
 ###Lengths of genes
 ####Plot out the length distribution for all the genes in Mus_musculus.GRCm38.94
-```{r}
-x <- ifelse(using_laptop,
-       genfo <- read.delim("C:/Users/bigginsl/Desktop/temp//biased_gene_lists/Mus_musculus.GRCm38.94_gene_info.txt"),
-       genfo <- read.delim("M:/biased_gene_lists/Mus_musculus.GRCm38.94_gene_info.txt")
-)
-bg_genes <- as.vector(unique(genfo$gene_name))
-
+```{r, fig.width = 10}
+par(mfrow = c(1,2))
 plot(density(log2(genfo$length)), lwd = 2, main = "", xlab = "log2 gene length")
-
-boxplot(log2(genfo$length))
-
+boxplot(log2(genfo$length), ylab = "log2 gene length")
 ```
 
 This data is displayed on a log scale as there are some very long genes that distort 
@@ -77,6 +61,8 @@ names(long) <- c("long", "very_long")
 ####Select gene length thresholds.
 
 ```{r, results = FALSE}
+par(mfrow = c(1,1))
+
 plot(density(log2(genfo$length)), 
      lwd  = 2, 
      main = "", 
@@ -225,11 +211,7 @@ quickly loaded in to the R session.
 
 See how many significant categories were returned.
 ```{r check_results}
-ifelse(using_laptop,
-       load("C:/Users/bigginsl/Desktop/temp//GOcategoryStats/data/length_results.rda"),
-       load("M:/GOcategoryStats/data/length_results.rda")
-)
-
+load("../data/length_results.rda")
 
 number_of_results <- lapply(length_results, function(x){
   nulls_removed <- x[lapply(x,length) != 0]
@@ -266,9 +248,10 @@ beanplot(
 )
 ```
           
-There are loads of results returned for the long genes, we'll plot out the p 
-and q values.
-```{r p_values, fig.height = 15, results = FALSE}
+```{r p_values, fig.height = 15, results = FALSE, eval = FALSE, echo = FALSE}
+#There are loads of results returned for the long genes, we'll plot out the p 
+#and q values.
+
 p_and_q <- lapply(length_results, function(x){
   pvals <- unlist(sapply(x, `[[`, "pval"))
   qvals <- unlist(sapply(x, `[[`, "adj_pval"))
@@ -333,13 +316,11 @@ ordered_categories <- lapply(length_results, function(length_subset){
   tabled_categories  <- table(all_sig_categories)
   tabled_categories[order(tabled_categories, decreasing = TRUE)]
 })
-
-#lapply(ordered_categories, head, n = 10)
 ```
 
 
 Plot how many times a category appeared.
-```{r, fig.height=6, fig.width = 10, results=FALSE}
+```{r, fig.height=6, fig.width = 10, results=FALSE, eval = FALSE, echo = FALSE}
 par(mfrow = c(2, 3))
 sapply(names(ordered_categories), function(x){
   plot(density(ordered_categories[[x]]), main = x)
@@ -416,7 +397,7 @@ text(1:22,
 
 
 Replot just showing the data for categories that appeared >= 10 times
-```{r beanplot_filtered, fig.width = 10, eval = FALSE}
+```{r beanplot_filtered, fig.width = 10, eval = FALSE, echo = FALSE}
 filtered_categories <- lapply(ordered_categories, function(x) x[x >= 10])
 
 beanplot(
@@ -443,7 +424,7 @@ text(1:length(ordered_categories),
 
 
 Now we could do with some stats to pick a cutoff for the number of times a 
-category appears. Let's just select an arbitrary value of 30 for now....
+category appears. Let's just select an arbitrary value for now....
 
 Create a dataset that contains these suspect set of categories
 ```{r}
@@ -485,13 +466,13 @@ suspects$short1 <- with(suspects, short1[!short1 %in% very_short])
 #names(suspects) <- gsub(names(suspects), pattern = "short2", replacement = "short")
 sapply(suspects, length)
 ```  
+
 ```{r}
 suspects <- suspects[sapply(suspects, length) > 0]
 sapply(suspects, length)
 ```
 
-```{r}
-#, eval=FALSE}
+```{r, eval=FALSE}
 # write out file with unix line endings
 for (i in 1:length(suspects)) {
   

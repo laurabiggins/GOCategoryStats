@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 # my laptop doesn't really like working on the network from home, it's better to 
 # copy the files to the computer and access them from there. This should make it 
 # easier to switch between
-using_laptop <- FALSE
+#using_laptop <- FALSE
 ```
 
 ```{r}
@@ -95,21 +95,24 @@ ggplot(genfo_temp , aes(x = no_of_transcripts)) + geom_histogram(fill = "seagree
 
 ```
 
-The first set of thresholds that I generated
-```{r}
+
+```{r, eval = FALSE, echo = FALSE}
+#The first set of thresholds that I generated
 thresholds <- c("10" = 10, "15" = 15, "20" = 20)
 sapply(thresholds, function(x) sum(genfo$no_of_transcripts >= x))
+#As there are only `r sum(genfo$no_of_transcripts >= 20)` genes with more that 20
+#transcripts, I won't include this category as the gene lists I'm using contain 
+#200 genes.
+#When I did test a min20 category, almost all the categories came up in the min15
+#set too.
 ```
-As there are only `r sum(genfo$no_of_transcripts >= 20)` genes with more that 20
-transcripts, I won't include this category as the gene lists I'm using contain 
-200 genes.
-When I did test a min20 category, almost all the categories came up in the min15
-set too.
 
+####Generating thresholds 
+Originally, I selected arbitrary thresholds of minimum 10, 15 and 20 transcripts per gene. 
+These seemed like reasonable numbers to choose and plenty of functional categories were identified in the overrepresentation tests.
 
-####Generating thresholds using the distribution of the data rather than just picking arbitrary thresholds.
-This method is more robust for applying to different species and future versions 
-of this genome.
+It is not ideal having hardcoded values when it comes to generating further sets of genes.
+Selecting thresholds dependent on the distribution of the data is a more robust method for applying to different species and future versions of this genome.
 ```{r}
 probabilities <-  c(0.9, 0.95, 0.99)
 transcript_thresholds <- quantile(genfo$no_of_transcripts, probs = probabilities)
@@ -119,17 +122,12 @@ thresholds <- data.frame(transcript_thresholds, probabilities, gene_counts)
 thresholds
 ```
 
-
-```{r, eval = FALSE}
-ggplot(genfo, aes(x = no_of_transcripts)) + geom_histogram(fill = "seagreen", binwidth = 1, color = "darkblue") + scale_y_log10()
-
-ggplot(genfo, aes(x = no_of_transcripts)) + geom_freqpoly(binwidth = 3) + scale_y_log10()
-```
-
+It worked nicely for the gene lengths to plot out the numbers on graphs but the 
+distribution here doesn't plot quite so well.
 
 ```{r}
 dens <- density(genfo$no_of_transcripts, adjust = 5)
-plot(dens, xlim = c(-2,30))
+plot(dens, xlim = c(-2,16))
 ```
 
 ###Generating the biased gene lists within R
@@ -145,6 +143,7 @@ biased_transcripts <- lapply(names(all_genes_in_group), function(x){
     all_genes_in_group[[x]][ceiling(runif(200, min = 0, max = length(all_genes_in_group[[x]]) - 1))]
   })
 })
+names(biased_transcripts) <- names(all_genes_in_group)
 ```
 
 ```{r, eval = FALSE}
@@ -163,35 +162,36 @@ biased_transcripts <- list(min10 = min10_genes, min15 = min15_genes)
 
 ```
 
-
 Check they all look right
-```{r, fig.height=9}
-head(genfo[match(min10_genes[,5], genfo$gene_name),])
-tail(genfo[match(min10_genes[,12], genfo$gene_name),])
-head(genfo[match(min15_genes[,28], genfo$gene_name),])
-tail(genfo[match(min15_genes[,73], genfo$gene_name),])
-```
+```{r, fig.height = 7, fig.width = 6}
+par(mfrow = c(1, 1))
 
+transcript_numbers <- lapply(biased_transcripts, function(x) {
+  genfo$no_of_transcripts[match(unlist(x), genfo$gene_name)]
+})
+
+boxplot(transcript_numbers, col = 1, ylab = "number of transcripts per gene")
+```
 
 ###GO overrepresentation analysis
          
 Run the gene lists through a GO overrepresentation analysis.
 
 ```{r, eval=FALSE}
-save(biased_transcripts, file = "M:/temp/biased_transcripts/biased_transcripts.rda")
+#save(biased_transcripts, file = "M:/temp/biased_transcripts/biased_transcripts.rda")
 
-x <- overrep_test(all_go_categories, query_genes = biased_transcripts$min15[,1], bg_genes)
+x <- overrep_test(all_go_categories, query_genes = biased_transcripts[[1]][,1], bg_genes)
 
 transcript_results <- lapply(biased_transcripts, function(transcript_subset){
   
   apply(transcript_subset, 2, function(query){
-    overrep_test(all_go_categories, query, bg_genes)#, mult_test = FALSE, pval_threshold = 0.01)
+    overrep_test(all_go_categories, query, bg_genes)
   })
 })
 
-names(transcript_results) <- c("min10", "min15")
+names(transcript_results) <- names(biased_transcripts)
 
-save(transcript_results, file = "M:/GOcategoryStats/data/transcript_results.rda")
+save(transcript_results, file = "../data/transcript_results.rda")
 ```
   
 We don't want to run the analysis each time the document is knitted as it takes
@@ -200,11 +200,11 @@ quickly loaded in to the R session.
  
 See how many significant categories were returned. 
 ```{r}
-ifelse(using_laptop,
-       load("C:/Users/bigginsl/Desktop/temp//GOcategoryStats/data/transcript_results.rda"),
-       load("M:/GOcategoryStats/data/transcript_results.rda")
-)
-names(transcript_results) <- c("min10", "min15")
+#ifelse(using_laptop,
+#       load("C:/Users/bigginsl/Desktop/temp//GOcategoryStats/data/transcript_results.rda"),
+#       load("M:/GOcategoryStats/data/transcript_results.rda")
+#)
+load("../data/transcript_results.rda")
 
 number_of_results <- lapply(transcript_results, function(x){
   nulls_removed <- x[lapply(x,length) != 0]
@@ -227,7 +227,7 @@ library(beanplot)
 options(scipen = 999) # disable the scientific notation
 
 beanplot(
-  number_of_results[1:2], 
+  number_of_results[1:3], 
   what   = c(0,1,0,1), 
   col    = c("#1B9E77","#06086d"), 
   ll     = 0.03, 
@@ -399,12 +399,12 @@ print_overlaps <- function(set1, set2, not_in = FALSE) {
 There are `r print_overlaps(suspects$min15, suspects$min10)` overlapping categories
 between min15 and min10 so I'll remove them from the min15 category.
 ```{r}
-suspects$min15 <- with(suspects, min15[!min15 %in% min10])
+#suspects$min15 <- with(suspects, min15[!min15 %in% min10])
 sapply(suspects, length)
 ```
 
 
-```{r, eval=FALSE}
+```{r, eval=FALSE, echo = FALSE}
 # write out file with unix line endings
 for (i in 1:length(suspects)){
   

@@ -7,15 +7,9 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_knit$set(global.par = TRUE)
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ```
 
-```{r, include = FALSE}
-# my laptop doesn't really like working on the network from home, it's better to 
-# copy the files to the computer and access them from there. This should make it 
-# easier to switch between
-#using_laptop <- FALSE
-```
 
 ```{r}
 library("devtools")
@@ -31,11 +25,10 @@ genome <- "Mus_musculus.GRCm38.94"
 ```
 
 Generate lists of mouse genes by number of transcripts.
-In the mouse genome, most genes have only one transcript, but 
-Do genes with high numbers of transcripts 
-more power, more reads 
-
-
+In the mouse genome, most genes have only one transcript, but some have many more.         
+Do sets of genes with high numbers of transcripts produce significant results in GO
+overrepresentation analysis?          
+  
 
 ###Pre-processing of data on cluster
 
@@ -44,15 +37,9 @@ Import the genfo file as described in 0.Generating biased gene lists : pre-proce
 This can be used to plot the distribution of the number of transcripts per gene 
 in the `r genome` genome.
 
-###Number of transcripts per gene in `r genome`
 ```{r}
-#x <- ifelse(using_laptop,
-##       genfo <- read.delim("C:/Users/bigginsl/Desktop/temp//biased_gene_lists/Mus_musculus.GRCm38.94_gene_info.txt"),
-#       genfo <- read.delim("M:/biased_gene_lists/Mus_musculus.GRCm38.94_gene_info.txt")
-#)
-
 genfo_file_name <- paste0("../data/", genome, "_gene_info.txt")
-#genfo <- read.delim("../data/Mus_musculus.GRCm38.94_gene_info.txt")
+
 genfo <- read.delim(genfo_file_name)
 bg_genes <- as.vector(unique(genfo$gene_name))
 
@@ -200,10 +187,6 @@ quickly loaded in to the R session.
  
 See how many significant categories were returned. 
 ```{r}
-#ifelse(using_laptop,
-#       load("C:/Users/bigginsl/Desktop/temp//GOcategoryStats/data/transcript_results.rda"),
-#       load("M:/GOcategoryStats/data/transcript_results.rda")
-#)
 load("../data/transcript_results.rda")
 
 number_of_results <- lapply(transcript_results, function(x){
@@ -240,7 +223,7 @@ beanplot(
 
           
 Plot out the p and q values.
-```{r p_values, fig.height = 8, results = FALSE}
+```{r p_values, fig.height = 8, results = FALSE, eval = FALSE, echo = FALSE}
 p_and_q <- lapply(transcript_results, function(x){
   pvals <- unlist(sapply(x, `[[`, "pval"))
   qvals <- unlist(sapply(x, `[[`, "adj_pval"))
@@ -345,9 +328,15 @@ text(1:length(ordered_categories),
 
 ```
 
-Replot just showing the data for categories that appeared >= 10 times
+Set a cut-off for the minimum number of times a category must appear in the 100 tests.
+```{r}
+min_appearances <- 15
+```
+
+
+Replot just showing the data for categories that appeared >= `r min_appearances` times
 ```{r beanplot_filtered}
-filtered_categories <- lapply(ordered_categories, function(x) x[x >= 10])
+filtered_categories <- lapply(ordered_categories, function(x) x[x >= min_appearances])
 
 beanplot(
   filtered_categories, 
@@ -359,7 +348,7 @@ beanplot(
   las    = 1,
   log    = "",
   ylim   = c(10, 120),
-  main   = "GO category appearances (>10)",
+  main   = paste0("GO category appearances (>", min_appearances, ")"),
   ylab   = "no of times GO category appeared"
 )
 
@@ -371,47 +360,67 @@ text(1:length(filtered_categories),
 
 ```
 
-
 Now we could do with some stats to pick a cutoff for the number of times a 
 category appears. Let's just select an arbitrary value for now....
-
-The top suspects from min 20 are all in min15 so I'll leave min20 for now.
 
 Create a dataset that contains these suspect set of categories
 ```{r}
 suspects <- lapply(ordered_categories, function(x){
-  names(x[x >= 10])
+  names(x[x >= min_appearances])
 })  
 ```  
 
 ###Deduplicate
+####Number of overlapping functional terms between the thresholds
 ```{r}
 print_overlaps <- function(set1, set2, not_in = FALSE) {
   ifelse(
     not_in, 
-    print(sum(!set1 %in% set2)), 
-    print(sum(set1 %in% set2))
+    sum(!set1 %in% set2), 
+    sum(set1 %in% set2)
   )
 }
 
+print_overlaps(suspects$`0.99`, suspects$`0.95`)
+print_overlaps(suspects$`0.99`, suspects$`0.9`)
+print_overlaps(suspects$`0.95`, suspects$`0.9`)
+
+
+#There are `r print_overlaps(suspects$`0.95`, suspects$`0.9`)` overlapping categories
+#between 0.95 and 0.9.
+
+```
+There are `r print_overlaps(suspects[["0.99"]], suspects[["0.95"]])` overlapping 
+categories between 0.99 and 0.95.             
+There are `r print_overlaps(suspects[["0.99"]], suspects[["0.9"]])` overlapping categories
+between 0.99 and 0.9.        
+There are `r print_overlaps(suspects[["0.95"]], suspects[["0.9"]])` overlapping categories
+between 0.95 and 0.9.
+
+The duplicate terms will be removed from the more stringent categories.
+
+```{r deduplicate}
+suspects$`0.99` <- with(suspects, `0.99`[!`0.99` %in% `0.95`])
+suspects$`0.99` <- with(suspects, `0.99`[!`0.99` %in% `0.9`])
+suspects$`0.95` <- with(suspects, `0.95`[!`0.95` %in% `0.9`])
 ```
 
-There are `r print_overlaps(suspects$min15, suspects$min10)` overlapping categories
-between min15 and min10 so I'll remove them from the min15 category.
+
+The number of terms remaining after deduplication
 ```{r}
-#suspects$min15 <- with(suspects, min15[!min15 %in% min10])
 sapply(suspects, length)
 ```
+Rename the categories
+```{r}
+names(suspects) <- c("high_transcripts", "very_high_transcripts", "vv_high_transcripts")
+```
 
-
-```{r, eval=FALSE, echo = FALSE}
+```{r} 
+#eval=FALSE, echo = FALSE}
 # write out file with unix line endings
-for (i in 1:length(suspects)){
+for (i in 1:length(suspects)) {
   
-  ifelse(using_laptop,
-         filename <- paste0("C:/Users/bigginsl/Desktop/temp/biased_gene_lists/identified_categories/", names(suspects)[i], "transcripts.txt"),
-         filename <- paste0("M:/biased_gene_lists/identified_categories/", names(suspects)[i], "transcripts.txt")
-  )
+  filename <- paste0("../data/", names(suspects)[i], ".txt")
   output_file <- file(filename, "wb")
   
   write.table(file = output_file, 

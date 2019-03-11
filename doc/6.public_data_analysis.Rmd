@@ -1,5 +1,5 @@
 ---
-title: "6. Public data gene sets"
+title: "6.Public data gene sets"
 output:
   html_document:
     df_print: paged

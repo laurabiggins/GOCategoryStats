@@ -112,6 +112,4 @@ tabled_categories  <- table(all_sig_categories)
 ordered_categories <- tabled_categories[order(tabled_categories, decreasing = TRUE)]
 ```
 
-I think that this should be re-run with more lenient p-value threshold then I 
-think that more neuron categories would come up
 

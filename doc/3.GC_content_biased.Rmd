@@ -200,7 +200,7 @@ GC <- lapply(GC_genelists, function(x) {
   genfo$GC_content[match(unlist(x), genfo$gene_name)]
 })
 
-boxplot(GC, col = 1)
+boxplot(GC, col = 1, las  = 1)
 ```
 
 
@@ -404,6 +404,7 @@ boxplot(filtered_categories_vec,
         pch  = 16,
         cex  = 0.5,
         col  = 1,
+        las  = 1,
         cex.axis = 0.8,
         ylim = c(10, 110)
         )

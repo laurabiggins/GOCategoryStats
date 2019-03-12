@@ -5,6 +5,12 @@ output:
     df_print: paged
 ---
 
+TODO: get the results that contain values rather than just the gene names, and explore
+the magnitude of the differences between the replicates, see which genes come up,
+maybe re-run the GO analysis with genes with higher fold change between replicates.
+Check for particular genes coming up.
+
+
 I have downloaded, mapped and counted reads over genes for 373
 public RNA seq datasets. There are 2 biological replicates for each sample. 
 The processing is detailed in a google drive markdown document 
@@ -118,8 +124,14 @@ small R script to count how many times the genes appeared
 
 ```{r}
 library("devtools")
-#load_all("C:/Users/bigginsl/Documents/GOcategoryStats")
-load_all("M:/GOcategoryStats")
+load_all()
+library(RColorBrewer)
+palette(brewer.pal(6, "Set2"))
+
+par(mgp = c(2, 0.5, 0))
+par(mar = par()$mar * 0.7)
+
+genome <- "Mus_musculus.GRCm38.94"
 ```
                   
                      
@@ -131,7 +143,8 @@ load_all("M:/GOcategoryStats")
 files <- list.files(path = "M:/biased_gene_lists/public_data/top_200", pattern = "top_200.txt", full.names = TRUE)
 top200 <- lapply(files, function(x) scan(x, what = "character"))
 
-genfo <- read.delim("M:/biased_gene_lists/Mus_musculus.GRCm38.94_gene_info.txt")
+genfo_file_name <- paste0("../data/", genome, "_gene_info.txt")
+genfo <- read.delim(genfo_file_name)
 bg_genes <- as.vector(unique(genfo$gene_name))
 ```
                   

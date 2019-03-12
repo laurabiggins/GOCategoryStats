@@ -230,7 +230,7 @@ sapply(number_of_results, length)
 ```
 
 
-The bean plots show   the number of categories returned from each gene list.
+The bean plots show the number of categories returned from each gene list.
 The null results have been removed.
 ```{r beanplots, fig.width = 10, fig.height = 6}
 par(mfrow = c(1,1))
@@ -384,10 +384,10 @@ filtered_categories_vec <- convert_tbl_vec(filtered_categories)
 boxplot(filtered_categories_vec,
         main = paste0("GO category appearances (>", min_appearances, ")"),
         ylab = "no of times GO category appeared",
-        xlab = "GC",
         pch  = 16,
         cex  = 0.5,
         col  = 1,
+        las  = 1,
         cex.axis = 0.8,
         ylim = c(10, 110)
         )

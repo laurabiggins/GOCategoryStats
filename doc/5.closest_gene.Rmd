@@ -3,55 +3,51 @@ title: "5.Closest genes to random positions"
 author: "Laura Biggins"
 date: "24 January 2019"
 output:
-  pdf_document: default
   html_document:
     df_print: paged
 ---
+
+TODO: see whether any genes in particular come up in the lists.
 
 ```{r setup, include=FALSE}
 knitr::opts_knit$set(global.par = TRUE)
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
 ```
 
-```{r, include = FALSE}
-# my laptop doesn't really like working on the network from home, it's better to 
-# copy the files to the computer and access them from there. This should make it 
-# easier to switch between
-using_laptop <- FALSE
-```
-
 ```{r}
 library("devtools")
-ifelse(using_laptop,
-       load_all("C:/Users/bigginsl/Desktop/temp/GOcategoryStats"),
-       load_all("M:/GOcategoryStats")
-       )
+load_all()
+
+library(RColorBrewer)
+palette(brewer.pal(6, "Set2"))
+
+library(tidyverse)
+library(skimr)
+
+par(mgp = c(2, 0.5, 0))
+par(mar = par()$mar * 0.7)
+
+genome <- "Mus_musculus.GRCm38.94"
 ```
 
 # Closest gene
 
-
 Some analyses performed on sequencing data use genes as the basis for analysis/ are gene-centric. In RNA-seq for example, a table of count data is often produced where a value for a gene is calculated by counting reads that fall within or overlap the gene. 
 Some analyses are not directly based around genes. A common method used in ChIP-seq analysis is peak calling, where a test sample is generally compared to a background sample to identify regions that have a high read count in the test sample. These peaks may be exonic or intronic and can simply be annotated with the overlapping gene. The peaks may also be intergenic in which case they are often annotated with the closest gene.        
-
-
-Genes vary greatly in size and the spread of genes is not uniform across chromosomes. It may be expected that longer genes, genes in the middle of gene `deserts` and those at the ends of clusters of genes are identified more frequently when annotating data with the closest gene to a region of interest.          
-
-
+                      
+Genes vary greatly in size and the spread of genes is not uniform across chromosomes. It may be expected that longer genes, genes in the middle of gene `deserts` and those at the ends of clusters of genes are identified more frequently when annotating data with the closest gene to a region of interest.                      
+                   
 The aim of this study was to see whether any biases were found when annotating random positions within the genome with the closest gene.
-This was carried out using the following steps:  
-
-
+This was carried out using the following steps:                  
+                  
 * generating random locations within the mouse genome and annotating these with the closest gene
 * seeing whether any particular genes were overrepresented
 * performing GO analyses on the lists of closest genes
-* investigating the GO categories that were identified multiple times
-
 
 
 ## Generating genes by random position
   
-The script `generate_genelist_from_random_positions.py` produces a list of genes.
+The python script `generate_genelist_from_random_positions.py` produces a list of genes.
 It generates a number of random positions along each chromosome. The number of positions generated is proportional to the length of the chromosome. The chromosome lengths are taken from a separate file (`chr_list.txt`)
 A gtf file containing all the genes in the genome is required. Each line from the gtf file is parsed and all the genes are stored by chromosome.
 Each random position is looped through to find the closest (or overlapping) gene and the output is written to a new file.
@@ -63,53 +59,158 @@ Extract the gene names and remove header
 `for i in closest*; do cut -f2 $i | tail -n 200 > ${i%".txt"}_just_genes.txt; done`
 
 
-```{r cars}
-#files <- list.files(path = "M:/biased_gene_lists", pattern = ".txt", full.names = TRUE)
-#files <- list.files(path = //fs-home/bigginsl/
+```{r, echo = FALSE, eval = FALSE}
+# Import and process the sets of genes. This shouldn't need doing again unless the lists are re-generated
 
-closest <- lapply(files, function(x) scan(x, what = "character"))
+#files <- list.files(path = "M:/biased_gene_lists/gene_lists/closest_gene/", pattern = ".txt", full.names = TRUE)
+#closest_gene_lists <- lapply(files, function(x) scan(x, what = "character"))
+#save(closest_gene_lists, file = "../data/closest_gene_lists.rda")
+```
 
-x <- ifelse(using_laptop,
-       genfo <- read.delim("C:/Users/bigginsl/Desktop/temp//biased_gene_lists/Mus_musculus.GRCm38.94_gene_info.txt"),
-       genfo <- read.delim("M:/biased_gene_lists/Mus_musculus.GRCm38.94_gene_info.txt")
-)
+```{r}
+genfo_file_name <- paste0("../data/", genome, "_gene_info.txt")
+genfo <- read.delim(genfo_file_name)
 
 bg_genes <- as.vector(unique(genfo$gene_name))
 ```
 
-We're going to run the overrepresentation test with no multiple testing correction,
-as we want to see which categories come up the most frequently, rather than whether 
-they are highly significant.
-```{r overrep, eval = FALSE}
-go_results1 <- overrep_test(all_go_categories, closest[[1]], bg_genes)
-go_results1
-go_results2 <- overrep_test(all_go_categories, closest[[1]], bg_genes)
-go_results2
-
-all_go_results <- lapply(closest, function(query){
-  overrep_test(all_go_categories, query, bg_genes, pval_threshold = 0.2)
-  })
-
-#save(all_go_results, file = "D:/projects/biases/GC_content_biased/lowGC/lowGC_results.rda")
-save(all_go_results, file = "M:/GOcategoryStats/data/closest_gene.rda")
-# this only took a minute or 2 but still worth saving
+###Checking for overrepresentation at the gene level
+```{r}
+load("../data/closest_gene_lists.rda")
+all_genes <- unlist(closest_gene_lists)
+tabled_genes <- table(all_genes)
+tabled_genes <- tabled_genes[order(tabled_genes, decreasing = TRUE)]
 ```
 
-```{r }
-ifelse(using_laptop,
-       load("C:/Users/bigginsl/Desktop/temp//GOcategoryStats/data/closest_gene.rda"),
-       load("M:/GOcategoryStats/data/closest_gene.rda")
+###Plot number of times a gene appeared vs its length
+```{r}
+genfo$occurrences <- as.vector(tabled_genes[match(genfo$gene_name, names(tabled_genes))])
+genfo$occurrences[is.na(genfo$occurrences)] <- 0
+
+genfo %>%
+  select_if(is.numeric) %>%
+  skim()
+
+plot(genfo$occurrences, log2(genfo$length), cex = 0.7, pch = 16)
+
+#ggplot(genfo, aes(x = occurrences, y = log2(length))) +
+#  geom_point(size = 0.6)
+
+
+library(MASS)
+library(ggplot2)
+library(viridis)
+get_density <- function(x, y, ...) {
+  dens <- MASS::kde2d(x, y, ...)
+  ix <- findInterval(x, dens$x)
+  iy <- findInterval(y, dens$y)
+  ii <- cbind(ix, iy)
+  return(dens$z[ii])
+}
+density_values <- get_density(genfo$occurrences, log2(genfo$length), n = 75)
+ggplot(genfo) +
+  geom_point(aes(x = occurrences, y = log2(length), color = density_values)) +
+  scale_colour_viridis()
+
+#genfo %>%
+#  subset(occurrences > 10) %>%
+#  ggplot() + geom_point(aes(x = occurrences, y = log2(length), color = get_density(occurrences, log2(length), n = 50)))
+    
+```
+
+```{r overrep, eval = FALSE}
+load("../data/closest_gene_lists.rda")
+closest <- closest_gene_lists
+go_results1 <- overrep_test(all_go_categories, closest[[1]], bg_genes)
+go_results1
+
+closest_gene_results <- lapply(closest, function(query){
+  overrep_test(all_go_categories, query, bg_genes)#, pval_threshold = 0.2)
+})
+
+save(closest_gene_results, file = "../data/closest_gene.rda")
+```
+
+```{r}
+load("../data/closest_gene.rda")
+
+nulls_removed <- closest_gene_results[lapply(closest_gene_results,length) != 0]
+number_of_results <- vapply(nulls_removed, nrow, FUN.VALUE = numeric(1))
+```
+  
+
+The number of gene sets that returned significant results from the GO 
+overrepresentation analysis 
+
+The bean plots show the number of categories returned from each gene list.
+The null results have been removed.
+```{r beanplots}
+library(beanplot)
+options(scipen = 999) # disable the scientific notation
+
+beanplot(
+  number_of_results, 
+  what   = c(0,1,0,1), 
+  col    = c("#1B9E77","#06086d"), 
+  ll     = 0.03, 
+  method = "jitter", 
+  border = "#06086d",
+  las    = 1,
+  main   = "number of significant categories per gene list returned from GO analysis"
 )
+```
 
-all_go_results[[6]]
-
-x <- sapply(all_go_results, is.null)
-
-significant_results <- all_go_results[which(!x)]
-
-all_sig_categories <- unlist(sapply(significant_results, rownames))
+```{r}
+all_sig_categories <- unlist(sapply(nulls_removed, rownames))
 tabled_categories  <- table(all_sig_categories)
 ordered_categories <- tabled_categories[order(tabled_categories, decreasing = TRUE)]
 ```
 
+In this set, we had 200 sets of gene lists, while in the others we had 100 per category.
+We'll therefore double the cut-off value.
+
+```{r}
+min_appearances <- 30
+```
+
+```{r filter}
+filtered_categories <- ordered_categories[ordered_categories >= min_appearances]
+filtered_categories_vec <- as.vector(filtered_categories)
+names(filtered_categories_vec) <- names(filtered_categories)
+```
+
+```{r}
+boxplot(filtered_categories_vec,
+        main = paste0("GO category appearances (>", min_appearances, ")"),
+        ylab = "no of times GO category appeared",
+        pch  = 16,
+        cex  = 0.5,
+        col  = 1,
+        las = 1,
+        cex.axis = 0.8
+        )
+
+```
+
+
+```{r }
+suspects <- names(ordered_categories[ordered_categories >= min_appearances])
+```
+
+
+```{r, eval = FALSE}
+filename <- "../data/closest_genes.txt"
+  
+output_file <- file(filename, "wb")
+
+write.table(
+  file      = output_file,
+  x         = suspects, 
+  row.names = FALSE,
+  col.names = FALSE, 
+  quote     = FALSE
+)
+
+close(output_file)
+```
 

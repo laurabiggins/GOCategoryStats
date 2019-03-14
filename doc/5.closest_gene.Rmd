@@ -8,6 +8,7 @@ output:
 ---
 
 TODO: see whether any genes in particular come up in the lists.
+https://www.datacamp.com/community/tutorials/tidyverse-exploratory-analysis
 
 ```{r setup, include=FALSE}
 knitr::opts_knit$set(global.par = TRUE)
@@ -78,6 +79,7 @@ bg_genes <- as.vector(unique(genfo$gene_name))
 ```{r}
 load("../data/closest_gene_lists.rda")
 all_genes <- unlist(closest_gene_lists)
+
 tabled_genes <- table(all_genes)
 tabled_genes <- tabled_genes[order(tabled_genes, decreasing = TRUE)]
 ```

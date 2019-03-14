@@ -12,7 +12,7 @@ https://www.datacamp.com/community/tutorials/tidyverse-exploratory-analysis
 
 ```{r setup, include=FALSE}
 knitr::opts_knit$set(global.par = TRUE)
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+knitr::opts_chunk$set(warning = FALSE)#, echo = FALSE)
 ```
 
 ```{r}
@@ -82,6 +82,47 @@ all_genes <- unlist(closest_gene_lists)
 
 tabled_genes <- table(all_genes)
 tabled_genes <- tabled_genes[order(tabled_genes, decreasing = TRUE)]
+gene_counts <- data.frame(gene = names(tabled_genes), n = as.vector(tabled_genes))
+
+gene_counts %>%
+  head(n = 30) %>%
+  ggplot(aes(x = fct_reorder(gene, n), y = n)) + 
+  geom_col() + 
+  coord_flip() +
+  labs(x = "gene")
+```
+###Evaluating locations in SeqMonk
+
+The output of the `generate_genelist_from_random_positions.py` script contains the 
+locations of the genes in the genome, along with the distance from the randomly generated
+position. 200 of these files were generated. The files can be concatenated and loaded 
+into SeqMonk to explore the data.
+Concatenate the files: 
+`info_files=$(ls closest_genes* | ls !(*just_genes*))`
+`head closest_genes_1.txt -n 1 > all_closest_gene_info.txt`
+`for i in $info_files; do tail -n 200 $i >> all_closest_gene_info.txt; done`
+
+![closest genes image](images/closest_genes.png)
+The first gene on the chromosome is highlighted on the SeqMonk plot. 
+Label the first genes and redo the plot.
+```{r}
+x <- split(genfo, f = genfo$chromosome)
+y <- lapply(x, head, n = 1)
+first_genes <- sapply(y, "[", "gene_name")
+first_genes_vec <- as.vector(unlist(first_genes))
+
+gene_counts$first_genes <- "no"
+
+gene_counts$first_genes[gene_counts$gene %in% first_genes_vec] <- "yes"
+gene_counts
+
+gene_counts %>%
+  head(n = 30) %>%
+  ggplot(aes(x = fct_reorder(gene, n), y = n, fill = first_genes)) + 
+  geom_col() + 
+  coord_flip() +
+  labs(x = "gene")
+
 ```
 
 ###Plot number of times a gene appeared vs its length
@@ -89,16 +130,22 @@ tabled_genes <- tabled_genes[order(tabled_genes, decreasing = TRUE)]
 genfo$occurrences <- as.vector(tabled_genes[match(genfo$gene_name, names(tabled_genes))])
 genfo$occurrences[is.na(genfo$occurrences)] <- 0
 
+genfo$first_genes <- "no"
+
+genfo$first_genes[genfo$gene_name %in% first_genes_vec] <- "yes"
+
+genfo %>%
+  group_by(chromosome)
+
 genfo %>%
   select_if(is.numeric) %>%
   skim()
 
 plot(genfo$occurrences, log2(genfo$length), cex = 0.7, pch = 16)
 
-#ggplot(genfo, aes(x = occurrences, y = log2(length))) +
-#  geom_point(size = 0.6)
-
-
+ggplot(genfo, aes(x = occurrences, y = log2(length), color = first_genes)) +
+  geom_point(size = 0.9)
+  
 library(MASS)
 library(ggplot2)
 library(viridis)
@@ -109,15 +156,16 @@ get_density <- function(x, y, ...) {
   ii <- cbind(ix, iy)
   return(dens$z[ii])
 }
+
 density_values <- get_density(genfo$occurrences, log2(genfo$length), n = 75)
 ggplot(genfo) +
   geom_point(aes(x = occurrences, y = log2(length), color = density_values)) +
   scale_colour_viridis()
 
-#genfo %>%
-#  subset(occurrences > 10) %>%
-#  ggplot() + geom_point(aes(x = occurrences, y = log2(length), color = get_density(occurrences, log2(length), n = 50)))
-    
+genfo %>%
+  subset(occurrences > 5) %>%
+  ggplot() + geom_point(aes(x = occurrences, y = log2(length), color = first_genes))
+  
 ```
 
 ```{r overrep, eval = FALSE}

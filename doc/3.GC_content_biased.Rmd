@@ -8,7 +8,8 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_knit$set(global.par = TRUE)
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+#knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 ```
 
 
@@ -73,6 +74,8 @@ These seemed like reasonable numbers to choose.
 
 It is not ideal having hardcoded values when it comes to generating further sets of genes.
 Selecting thresholds dependent on the distribution of the data is a more robust method for applying to different species and future versions of this genome.
+I'll select GC content thresholds based on the distribution of GC content over all genes.
+The probabilities I'm using are 0.01, 0.05, 0.1, 0.9, 0.95, 0.99.
 ```{r}
 probabilities <-  c(0.01, 0.05, 0.1, 0.9, 0.95, 0.99)
 thresholds <- quantile(genfo$GC_content, probs = probabilities)
@@ -271,11 +274,11 @@ beanplot(
 )
 ```
 
-Plot out the p and q values
 
-There are loads of results returned for the long genes, we'll plot out the p 
-and q values.
 ```{r p_values, fig.height = 15, results = FALSE, echo = FALSE, eval = FALSE}
+#Plot out the p and q values
+#There are loads of results returned for the long genes, we'll plot out the p 
+#and q values.
 p_and_q <- lapply(GC_results, function(x){
   pvals <- unlist(sapply(x, `[[`, "pval"))
   qvals <- unlist(sapply(x, `[[`, "adj_pval"))
@@ -342,8 +345,6 @@ ordered_categories <- lapply(GC_results, function(length_subset){
 #lapply(ordered_categories, head, n = 10)
 ```
 
-beanplot didn't work
-Error in bw.SJ(x, method = "dpi") : sample is too sparse to find TD
 
 ```{r}
 # convert list of table to list of vectors

@@ -166,9 +166,10 @@ boxplot(number_of_results,
         )
 ```
           
+
+```{r p_values, fig.height = 30, results = FALSE, eval = FALSE, echo = FALSE}
 ### Looking at p and q value thresholds
 Plot out the p and q values.
-```{r p_values, fig.height = 30, results = FALSE, eval = FALSE, echo = FALSE}
 p_and_q <- lapply(chr_results, function(x){
   pvals <- unlist(sapply(x, `[[`, "pval"))
   qvals <- unlist(sapply(x, `[[`, "adj_pval"))
@@ -321,9 +322,10 @@ text(1:22,
         
 ```
 
-p values and number of occurrences of categories.
 
-```{r}
+
+```{r, echo = FALSE, eval = FALSE}
+#p values and number of occurrences of categories.
 filtered_categories <- filtered_categories[sapply(filtered_categories, length) > 0]
 
 p_and_q <- lapply(chr_results, function(x){

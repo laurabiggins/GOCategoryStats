@@ -12,7 +12,7 @@ https://www.datacamp.com/community/tutorials/tidyverse-exploratory-analysis
 
 ```{r setup, include=FALSE}
 knitr::opts_knit$set(global.par = TRUE)
-knitr::opts_chunk$set(warning = FALSE)#, echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)#, echo = FALSE)
 ```
 
 ```{r}
@@ -32,6 +32,8 @@ genome <- "Mus_musculus.GRCm38.94"
 ```
 
 # Closest gene
+
+###TODO: add some diagrams in here
 
 Some analyses performed on sequencing data use genes as the basis for analysis/ are gene-centric. In RNA-seq for example, a table of count data is often produced where a value for a gene is calculated by counting reads that fall within or overlap the gene. 
 Some analyses are not directly based around genes. A common method used in ChIP-seq analysis is peak calling, where a test sample is generally compared to a background sample to identify regions that have a high read count in the test sample. These peaks may be exonic or intronic and can simply be annotated with the overlapping gene. The peaks may also be intergenic in which case they are often annotated with the closest gene.        

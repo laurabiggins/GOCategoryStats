@@ -35,12 +35,23 @@ genome <- "Mus_musculus.GRCm38.94"
 
 ###TODO: add some diagrams in here
 
-Some analyses performed on sequencing data use genes as the basis for analysis/ are gene-centric. In RNA-seq for example, a table of count data is often produced where a value for a gene is calculated by counting reads that fall within or overlap the gene. 
-Some analyses are not directly based around genes. A common method used in ChIP-seq analysis is peak calling, where a test sample is generally compared to a background sample to identify regions that have a high read count in the test sample. These peaks may be exonic or intronic and can simply be annotated with the overlapping gene. The peaks may also be intergenic in which case they are often annotated with the closest gene.        
+Some analyses performed on sequencing data use genes as the basis for analysis so 
+are essentially gene-centric. In RNA-seq for example, a table of count data is 
+often produced where a value for a gene is calculated by counting reads that fall 
+within or overlap the gene. 
+Some analyses are not directly based around genes. A common method used in ChIP-seq 
+analysis is peak calling, where a test sample is generally compared to a background 
+sample to identify regions that have a high read count in the test sample. 
+These peaks may be exonic or intronic and can simply be annotated with the overlapping gene.
+The peaks may also be intergenic in which case they are often annotated with the closest gene.        
                       
-Genes vary greatly in size and the spread of genes is not uniform across chromosomes. It may be expected that longer genes, genes in the middle of gene `deserts` and those at the ends of clusters of genes are identified more frequently when annotating data with the closest gene to a region of interest.                      
+Genes vary greatly in size and the spread of genes is not uniform across chromosomes. 
+It may be expected that longer genes, genes in the middle of gene `deserts` and 
+those at the ends of clusters of genes are identified more frequently when annotating 
+data with the closest gene to a region of interest.                      
                    
-The aim of this study was to see whether any biases were found when annotating random positions within the genome with the closest gene.
+The aim of this study was to see whether any biases were found when annotating 
+random positions within the genome with the closest gene.
 This was carried out using the following steps:                  
                   
 * generating random locations within the mouse genome and annotating these with the closest gene
@@ -51,12 +62,18 @@ This was carried out using the following steps:
 ## Generating genes by random position
   
 The python script `generate_genelist_from_random_positions.py` produces a list of genes.
-It generates a number of random positions along each chromosome. The number of positions generated is proportional to the length of the chromosome. The chromosome lengths are taken from a separate file (`chr_list.txt`)
-A gtf file containing all the genes in the genome is required. Each line from the gtf file is parsed and all the genes are stored by chromosome.
-Each random position is looped through to find the closest (or overlapping) gene and the output is written to a new file.
-This script has been run to create lists of genes for the mouse genome using the gtf file for genome version GRCm38.95
+It generates a number of random positions along each chromosome. 
+The number of positions generated is proportional to the length of the chromosome. 
+The chromosome lengths are taken from a separate file (`chr_list.txt`)
+A gtf file containing all the genes in the genome is required. Each line from the 
+gtf file is parsed and all the genes are stored by chromosome.
+Each random position is looped through to find the closest (or overlapping) gene 
+and the output is written to a new file.
+This script has been run to create lists of genes for the mouse genome using the 
+gtf file for genome version GRCm38.95
 
-`for i in {1..200}; do qsub  -cwd -V -l h_vmem=10G python ./generate_genelist_from_random_positions.py --output gene_lists_GRCm38.95/closest_genes_${i}.txt; done`
+`for i in {1..200}; do qsub  -cwd -V -l h_vmem=10G python ./generate_genelist_from_random_positions.py`
+`--output gene_lists_GRCm38.95/closest_genes_${i}.txt; done`
 
 Extract the gene names and remove header
 `for i in closest*; do cut -f2 $i | tail -n 200 > ${i%".txt"}_just_genes.txt; done`
@@ -84,7 +101,7 @@ all_genes <- unlist(closest_gene_lists)
 
 tabled_genes <- table(all_genes)
 tabled_genes <- tabled_genes[order(tabled_genes, decreasing = TRUE)]
-gene_counts <- data.frame(gene = names(tabled_genes), n = as.vector(tabled_genes))
+gene_counts  <- data.frame(gene = names(tabled_genes), n = as.vector(tabled_genes))
 
 gene_counts %>%
   head(n = 30) %>%
@@ -93,7 +110,8 @@ gene_counts %>%
   coord_flip() +
   labs(x = "gene")
 ```
-###Evaluating locations in SeqMonk
+                
+### Evaluating locations in SeqMonk
 
 The output of the `generate_genelist_from_random_positions.py` script contains the 
 locations of the genes in the genome, along with the distance from the randomly generated
@@ -105,6 +123,7 @@ Concatenate the files:
 `for i in $info_files; do tail -n 200 $i >> all_closest_gene_info.txt; done`
 
 ![closest genes image](images/closest_genes.png)
+                        
 The first gene on the chromosome is highlighted on the SeqMonk plot. 
 Label the first genes and redo the plot.
 ```{r}

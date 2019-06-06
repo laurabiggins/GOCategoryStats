@@ -41,20 +41,20 @@ Then we explore the GO categories that come up
 
 ```{r}
 library("devtools")
-load_all("M:/GOcategoryStats")
+load_all("../../GOcategoryStats")
 ```
 
 ##Processing the gmt and gtf files
 ```{r process_files}
 #file_location <- "http://download.baderlab.org/EM_Genesets/current_release/Mouse/symbol/Mouse_GO_AllPathways_no_GO_iea_December_01_2018_symbol.gmt"
 
-file_location <- "http://download.baderlab.org/EM_Genesets/current_release/Mouse/symbol/Mouse_GO_AllPathways_no_GO_iea_February_01_2019_symbol.gmt"
+file_location <- "http://download.baderlab.org/EM_Genesets/current_release/Mouse/symbol/Mouse_GO_AllPathways_no_GO_iea_April_01_2019_symbol.gmt"
 
 go_categories <- process_GMT(file_location)
-save(go_categories, file = "M:/GOcategoryStats/data/go_categories.rda")
+save(go_categories, file = "../data/go_categories.rda")
 
 all_go_categories <- process_GMT(file_location, min_genes = 3, max_genes = 10000)
-save(all_go_categories, file = "M:/GOcategoryStats/data/all_go_categories.rda")
+save(all_go_categories, file = "../data/all_go_categories.rda")
 
 
 # file location, fread failed when tring to download directly from the url "ftp://ftp.ensembl.org/pub/release-94/gtf/mus_musculus/Mus_musculus.GRCm38.94.gtf.gz"

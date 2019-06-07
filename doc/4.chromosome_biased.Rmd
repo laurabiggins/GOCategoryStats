@@ -6,7 +6,8 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, fig.width = 10)
+display_code <- FALSE
+knitr::opts_chunk$set(fig.width = 10, echo = display_code)
 knitr::opts_knit$set(global.par = TRUE)
 ```
 

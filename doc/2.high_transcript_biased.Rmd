@@ -6,8 +6,9 @@ output:
 ---
 
 ```{r setup, include=FALSE}
+display_code <- FALSE
 knitr::opts_knit$set(global.par = TRUE)
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, echo = display_code)
 ```
 
 

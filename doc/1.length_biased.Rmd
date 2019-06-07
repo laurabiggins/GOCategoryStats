@@ -1,15 +1,15 @@
 ---
 title: "1.Length biased gene sets"
 author: "Laura Biggins"
-date: "4 March 2019"
 output:
   html_document:
     df_print: paged
 ---
 
 ```{r setup, include=FALSE}
+display_code <- FALSE
 knitr::opts_knit$set(global.par = TRUE)
-knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = display_code)
 ```
 
 ```{r}

@@ -5,6 +5,13 @@ output:
     df_print: paged
 ---
 
+```{r setup, include=FALSE}
+display_code <- FALSE
+knitr::opts_chunk$set(fig.width = 10, echo = display_code)
+knitr::opts_knit$set(global.par = TRUE)
+```
+
+
 TODO: get the results that contain values rather than just the gene names, and explore
 the magnitude of the differences between the replicates, see which genes come up,
 maybe re-run the GO analysis with genes with higher fold change between replicates.

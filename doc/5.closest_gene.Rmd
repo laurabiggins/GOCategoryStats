@@ -1,7 +1,6 @@
 ---
 title: "5.Closest genes to random positions"
 author: "Laura Biggins"
-date: "24 January 2019"
 output:
   html_document:
     df_print: paged
@@ -11,8 +10,9 @@ TODO: see whether any genes in particular come up in the lists.
 https://www.datacamp.com/community/tutorials/tidyverse-exploratory-analysis
 
 ```{r setup, include=FALSE}
+display_code <- FALSE
 knitr::opts_knit$set(global.par = TRUE)
-knitr::opts_chunk$set(warning = FALSE, message = FALSE)#, echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = display_code)
 ```
 
 ```{r}
@@ -33,20 +33,19 @@ genome <- "Mus_musculus.GRCm38.94"
 
 # Closest gene
 
-###TODO: add some diagrams in here
-
-Some analyses performed on sequencing data use genes as the basis for analysis so 
-are essentially gene-centric. In RNA-seq for example, a table of count data is 
-often produced where a value for a gene is calculated by counting reads that fall 
-within or overlap the gene. 
+Some analyses performed on sequencing data use genes as the basis for analysis.
+In RNA-seq for example, a table of count data is often produced where a value 
+for a gene is calculated by counting reads that fall within or overlap the gene. 
 Some analyses are not directly based around genes. A common method used in ChIP-seq 
 analysis is peak calling, where a test sample is generally compared to a background 
 sample to identify regions that have a high read count in the test sample. 
 These peaks may be exonic or intronic and can simply be annotated with the overlapping gene.
-The peaks may also be intergenic in which case they are often annotated with the closest gene.        
+The peaks may also be intergenic in which case they are often annotated with the closest gene. 
+
+[insert picture/diagram of exonic, intronic and intergenic peaks]
                       
 Genes vary greatly in size and the spread of genes is not uniform across chromosomes. 
-It may be expected that longer genes, genes in the middle of gene `deserts` and 
+It may be expected that longer genes, genes in the middle of gene deserts and 
 those at the ends of clusters of genes are identified more frequently when annotating 
 data with the closest gene to a region of interest.                      
                    
@@ -61,7 +60,7 @@ This was carried out using the following steps:
 
 ## Generating genes by random position
   
-The python script `generate_genelist_from_random_positions.py` produces a list of genes.
+The python script `generate_genelist_from_random_positions.py` produces a list of 200 genes.
 It generates a number of random positions along each chromosome. 
 The number of positions generated is proportional to the length of the chromosome. 
 The chromosome lengths are taken from a separate file (`chr_list.txt`)
@@ -95,22 +94,27 @@ bg_genes <- as.vector(unique(genfo$gene_name))
 ```
 
 ###Checking for overrepresentation at the gene level
+
+There are 200 sets of 200 genes. We can plot out which genes appear the most often
+in the 200 sets. The top hit, Gm20388, appears 69 times.
+(Does each gene only appear once per list? I don't think I filter on that.)
 ```{r}
 load("../data/closest_gene_lists.rda")
 all_genes <- unlist(closest_gene_lists)
 
 tabled_genes <- table(all_genes)
 tabled_genes <- tabled_genes[order(tabled_genes, decreasing = TRUE)]
-gene_counts  <- data.frame(gene = names(tabled_genes), n = as.vector(tabled_genes))
+gene_counts  <- data.frame(gene_name = names(tabled_genes), n = as.vector(tabled_genes))
 
 gene_counts %>%
   head(n = 30) %>%
-  ggplot(aes(x = fct_reorder(gene, n), y = n)) + 
+  ggplot(aes(x = fct_reorder(gene_name, n), y = n)) + 
   geom_col() + 
   coord_flip() +
   labs(x = "gene")
 ```
-                
+               
+                               
 ### Evaluating locations in SeqMonk
 
 The output of the `generate_genelist_from_random_positions.py` script contains the 
@@ -134,15 +138,47 @@ first_genes_vec <- as.vector(unlist(first_genes))
 
 gene_counts$first_genes <- "no"
 
-gene_counts$first_genes[gene_counts$gene %in% first_genes_vec] <- "yes"
+gene_counts$first_genes[gene_counts$gene_name %in% first_genes_vec] <- "yes"
+
+# add gene lengths or genes longer than 1mb
+gene_counts <- genfo %>%
+  filter(gene_name %in% gene_counts$gene_name) %>%
+  dplyr::select(gene_name, length) %>%
+  right_join(gene_counts) %>%
+  mutate(longer_than_1mb = length > 1000000)
+
 gene_counts
 
 gene_counts %>%
   head(n = 30) %>%
-  ggplot(aes(x = fct_reorder(gene, n), y = n, fill = first_genes)) + 
+  ggplot(aes(x = fct_reorder(gene_name, n), y = n, fill = first_genes)) + 
   geom_col() + 
   coord_flip() +
   labs(x = "gene")
+
+gene_counts %>%
+  head(n = 30) %>%
+  ggplot(aes(x = fct_reorder(gene_name, n), y = n, fill = longer_than_1mb)) + 
+  geom_col() + 
+  coord_flip() +
+  labs(x = "gene")
+
+gene_counts <- gene_counts %>%
+  mutate(gene_characteristics = ifelse(first_genes == "yes", "first_gene", NA)) 
+
+# cringy code but it wasn't working the other ways I tried
+gene_counts$gene_characteristics[gene_counts$longer_than_1mb] <- "long_gene"
+gene_counts$gene_characteristics[gene_counts$first_genes == "yes" && gene_counts$longer_than_1mb] <- "first and long"
+gene_counts
+
+gene_counts %>%
+  head(n = 30) %>%
+  ggplot(aes(x = fct_reorder(gene_name, n), y = n, fill = gene_characteristics)) + 
+  geom_col() + 
+  coord_flip() +
+  labs(x = "gene")
+
+#!! make a vector of first_gene, longer than 1mb, and both
 
 ```
 
@@ -188,6 +224,8 @@ genfo %>%
   ggplot() + geom_point(aes(x = occurrences, y = log2(length), color = first_genes))
   
 ```
+
+##Gene ontology analysis
 
 ```{r overrep, eval = FALSE}
 load("../data/closest_gene_lists.rda")

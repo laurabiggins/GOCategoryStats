@@ -1,0 +1,39 @@
+---
+title: "6.1public_data_tidy"
+output: html_document
+---
+
+```{r}
+library("dplyr")
+load("../data/all_go_results.rda")
+all_sig_categories <- unlist(sapply(all_go_results, rownames))
+tabled_categories <- table(all_sig_categories)
+
+tibble_cat <- as_tibble(tabled_categories)
+
+filt <- tibble_cat %>% 
+  arrange(desc(n)) %>%
+  mutate(proportion = n/length(all_go_results)) %>%
+  filter(proportion > 0.3) 
+filt
+```
+
+```{r}
+suspects <- select(filt, all_sig_categories)
+```
+
+```{r}
+filename <- "../data/public_data_tidied.txt"
+  
+output_file <- file(filename, "wb")
+
+write.table(
+  file      = output_file,
+  x         = suspects, 
+  row.names = FALSE,
+  col.names = FALSE, 
+  quote     = FALSE
+)
+
+close(output_file)
+```

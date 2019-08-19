@@ -26,7 +26,7 @@ genome <- "Mus_musculus.GRCm38.94"
 
 Generate lists of mouse genes biased by the length of the genes.
 
-###Import the gene info file
+### Import the gene info file       
 
 The gene info file contains the lengths of all the genes in the mouse genome. 
 These can be plotted so that some thresholds for length categories can be determined.
@@ -36,8 +36,8 @@ genfo <- read.delim(genfo_file_name)
 bg_genes <- as.vector(unique(genfo$gene_name))
 ```
 
-###Lengths of genes
-####Plot out the length distribution for all the genes in Mus_musculus.GRCm38.94
+### Lengths of genes
+#### Plot out the length distribution for all the genes in Mus_musculus.GRCm38.94
 ```{r, fig.width = 10}
 par(mfrow = c(1,2))
 plot(density(log2(genfo$length)), lwd = 2, main = "", xlab = "log2 gene length")
@@ -58,7 +58,7 @@ long <- quantile(log2(genfo$length), probs = c(0.9, 0.95))
 names(long) <- c("long", "very_long")
 ```
 
-####Select gene length thresholds.
+#### Select gene length thresholds.
 
 ```{r, results = FALSE}
 par(mfrow = c(1,1))
@@ -143,9 +143,20 @@ sapply(names(thresholds), function(length_cat){
 
 ```
 
-###Further pre-processing: Generating the biased gene lists
+### Generating the biased gene lists
+           
+           
+           
+           
+           
+           
+           
+           
+           
+           
+           
+           
 
-###Generating the biased gene lists within R
 
 ```{r generate_gene_lists}
 biased_lengths <- lapply(names(thresholds), function(category){
@@ -175,8 +186,9 @@ save(biased_lengths, file = "M:/temp/length/length_genelists.rda")
 ```
 
 
-Check they all look right
-```{r, fig.height = 7, fig.width = 6}
+Check they all look right             
+      
+```{r, fig.height = 5, fig.width = 6}
 par(mfrow = c(1, 1))
 
 lengths <- lapply(biased_lengths, function(x) {
@@ -190,7 +202,7 @@ boxplot(lengths, col = 1)
 The odd gene that doesn't fall within the expected size range may be due to name 
 duplication.
 
-###GO overrepresentation analysis
+### GO overrepresentation analysis
          
 Run the gene lists through a GO overrepresentation analysis.
 
@@ -480,7 +492,7 @@ suspects <- suspects[sapply(suspects, length) > 0]
 sapply(suspects, length)
 ```
 
-```{r, eval=FALSE}
+```{r}
 # write out file with unix line endings
 for (i in 1:length(suspects)) {
   

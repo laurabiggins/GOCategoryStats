@@ -25,23 +25,11 @@ palette(brewer.pal(6, "Paired"))
 genome <- "Mus_musculus.GRCm38.94"
 ```
 
+If there is a chromosomal duplication or deletion event, there may be higher or lower expression levels of genes on the affected chromosome. This may signify a problem with the data but it is something that should be acknowledged.
+
 Generate lists of mouse genes by chromosome.
 
-##Pre-processing of data
-
-See closest_gene.Rmd - the generation of the genfo file was the same.
-We can use the genfo file created from that processing to generate the biased gene
-lists.
-
-Some other lists were generated on the cluster as the processing was fairly complicated.
-In particular, generating the sets of "closest genes" to random positions.
-I also have a script that quickly filters on various parameters, so have used 
-that for generating some gene lists. 
-
-To produce the lists of genes per chromosome, I'll do that within R as it's fairly
-simple and means not having to use the cluster and move more files around.
-
-####Plot the number of genes on each chromosome in Mus_musculus.GRCm38.94
+## Plot the number of genes on each chromosome in Mus_musculus.GRCm38.94
 ```{r, fig.width = 10}
 genfo_file_name <- paste0("../data/", genome, "_gene_info.txt")
 
@@ -63,7 +51,7 @@ barplot(chr_table,
         )
 ```
 
-####Randomly select 200 genes from each chromosome.
+#### Randomly select 200 genes from each chromosome.
 
 ```{r}
 res <- tapply(genfo$gene_name, INDEX = genfo$chromosome, FUN = function(x){
@@ -84,7 +72,7 @@ tail(genfo[match(res[["16"]][,5], genfo$gene_name),])
 head(genfo[match(res[["X"]][,5], genfo$gene_name),])
 ```
 
-###GO overrepresentation analysis
+### GO overrepresentation analysis
          
 Run the gene lists through a GO overrepresentation analysis.
 
@@ -226,7 +214,7 @@ sapply(chr_order, function(x) {
 
 
 ### The number of times that a GO category appears in the 100 tests
-#### The top categories from each chromosome.
+
 ```{r}
 tabled_categories <- lapply(chr_results, function(chr_subset){
   
@@ -235,7 +223,7 @@ tabled_categories <- lapply(chr_results, function(chr_subset){
   tabled_categories[order(tabled_categories, decreasing = TRUE)]
 })
 
-lapply(tabled_categories, head, n = 5)
+#lapply(tabled_categories, head, n = 5)
 ```
 
 ### Determining thresholds for the number of times a category appears.
@@ -354,7 +342,7 @@ sapply(suspects, length)
 ```
 
 
-```{r, eval=FALSE}
+```{r}
 # write out file with unix line endings
 for (i in 1:length(suspects)) {
   

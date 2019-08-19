@@ -31,7 +31,7 @@ Do sets of genes with high numbers of transcripts produce significant results in
 overrepresentation analysis?          
   
 
-###Pre-processing of data on cluster
+### Pre-processing of data on cluster
 
 Import the genfo file as described in 0.Generating biased gene lists : pre-processing. 
 
@@ -95,7 +95,7 @@ sapply(thresholds, function(x) sum(genfo$no_of_transcripts >= x))
 #set too.
 ```
 
-####Generating thresholds 
+#### Generating thresholds 
 Originally, I selected arbitrary thresholds of minimum 10, 15 and 20 transcripts per gene. 
 These seemed like reasonable numbers to choose and plenty of functional categories were identified in the overrepresentation tests.
 
@@ -118,7 +118,7 @@ dens <- density(genfo$no_of_transcripts, adjust = 5)
 plot(dens, xlim = c(-2,16))
 ```
 
-###Generating the biased gene lists within R
+### Generating the biased gene lists within R
 
 ```{r generate_gene_lists}
 all_genes_in_group <- sapply(thresholds$transcript_thresholds, function(x){
@@ -161,7 +161,7 @@ transcript_numbers <- lapply(biased_transcripts, function(x) {
 boxplot(transcript_numbers, col = 1, ylab = "number of transcripts per gene")
 ```
 
-###GO overrepresentation analysis
+### GO overrepresentation analysis
          
 Run the gene lists through a GO overrepresentation analysis.
 
@@ -371,8 +371,8 @@ suspects <- lapply(ordered_categories, function(x){
 })  
 ```  
 
-###Deduplicate
-####Number of overlapping functional terms between the thresholds
+### Deduplicate
+#### Number of overlapping functional terms between the thresholds
 ```{r}
 print_overlaps <- function(set1, set2, not_in = FALSE) {
   ifelse(

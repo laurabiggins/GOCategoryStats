@@ -84,7 +84,7 @@ The output of this command is a set of bam files which contain the mapped data.
 ### Getting counts over genes
 
 To quantify the number of reads over genes, htseq-count was used. htseq-count is a python package that requires a set of reads mapped to the genome, along with a set of defined regions (in this case genes). It then counts how many reads fall within the regions. For this analysis, a gtf file that defines all the genes in the genome was used. Only reads that map unambiguously to a gene are counted. 
-A wrapper around htseq was used to sort the bam file before htseq could count the number of reads over each gene. The directionality of libraries is not usually specified in the metadata,  so although it meant losing some information, the libraries were all assumed to be non-directional.
+A wrapper around htseq was used to sort the bam file before htseq could count the number of reads over each gene. The directionality of libraries is not usually specified in the metadata, so although it meant losing some information, the libraries were all assumed to be non-directional.
 `for i in *bam; do qsub -cwd -V -l h_vmem=16G -N htseq sh ../htseq_wrapper.sh $i;done`
 
 The output of this is a text file, the first column containing the gene name, and the second column containing the number of reads that mapped to that gene.
@@ -169,7 +169,7 @@ public_data_results <- lapply(top200, function(query){
 })
 
 #save(all_go_results, file = "D:/projects/biases/public_data/all_go_results.rda")
-save(all_go_results, file = "M:/GOcategoryStats/data/all_go_results_closest_gene.rda")
+#save(all_go_results, file = "M:/GOcategoryStats/data/all_go_results_closest_gene.rda")
 # took 7-8 mins to run for 373 datasets so I'm saving the file rather than
 # re-running this every time it gets knitted.
 ```
@@ -281,9 +281,4 @@ x_ordered <- table(z5)[order(table(z5), decreasing = TRUE)]
 df <- data.frame(x_ordered)
 colnames(df) <- c("gene_name", "count")
 ```
-
-
-
-
-
 

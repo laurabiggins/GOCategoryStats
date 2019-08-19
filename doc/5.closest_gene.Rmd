@@ -93,7 +93,7 @@ genfo <- read.delim(genfo_file_name)
 bg_genes <- as.vector(unique(genfo$gene_name))
 ```
 
-###Checking for overrepresentation at the gene level
+### Checking for overrepresentation at the gene level
 
 There are 200 sets of 200 genes. We can plot out which genes appear the most often
 in the 200 sets. The top hit, Gm20388, appears 69 times.
@@ -182,7 +182,7 @@ gene_counts %>%
 
 ```
 
-###Plot number of times a gene appeared vs its length
+### Plot number of times a gene appeared vs its length
 ```{r}
 genfo$occurrences <- as.vector(tabled_genes[match(genfo$gene_name, names(tabled_genes))])
 genfo$occurrences[is.na(genfo$occurrences)] <- 0
@@ -225,7 +225,7 @@ genfo %>%
   
 ```
 
-##Gene ontology analysis
+## Gene ontology analysis
 
 ```{r overrep, eval = FALSE}
 load("../data/closest_gene_lists.rda")
@@ -307,7 +307,7 @@ suspects <- names(ordered_categories[ordered_categories >= min_appearances])
 ```
 
 
-```{r, eval = FALSE}
+```{r}
 filename <- "../data/closest_genes.txt"
   
 output_file <- file(filename, "wb")

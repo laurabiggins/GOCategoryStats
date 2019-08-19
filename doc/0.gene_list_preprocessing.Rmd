@@ -1,5 +1,5 @@
 ---
-title: '0.Generating biased gene lists : pre-processing'
+title: '0.Generating biased gene lists for GOliath: Overview and initial processing'
 author: "Laura Biggins"
 date: "4 March 2019"
 output:
@@ -7,11 +7,25 @@ output:
   html_document:
     df_print: paged
 ---
-
 ```{r setup, include=FALSE}
 knitr::opts_knit$set(global.par = TRUE)
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 ```
+
+##GOLiath
+GOliath is a web-based tool for performing functional enrichment analysis on lists of genes.
+It uses existing sets of genes that have been annotated and grouped into functional
+categories.. what? am I just trying to explain GSEA? 
+
+The set of query genes are tested for overrepresentation in each of the functional categories. The statistical test used is a Fisher’s Exact test and this provides a p-value as a measure of significance. A multiple testing correction is carried out using the Benjamini-Hochberg method. An enrichment score is also calculated.
+This functional enrichment testing is a very useful method to find biological meaning from the data. It comes at the end of a pipeline/after many steps of production and processing of the data.
+At various points in the preparation of sequencing libraries and throughout the analysis of the data, biases can be introduced, which can ultimately affect which genes are identified as being overrepresented. 
+For example, during library preparation, PCR is usually used to amplify the amount of starting material. During the rounds of PCR, sequences with high proportions of G and C nucleotides can be favoured as the GC bonds break down at a higher temperature than the AT bonds. This can lead to a GC bias in the library.
+Another eg – long genes/closest genes
+We wanted to produce lists of genes biased in different ways e.g. by GC content of the genes, length of the gen and run these through functional enrichment analysis to see whether any function categories were identified and may therefore be associated with a bias in the data.
+The output, a set of functional categories associated with a particular bias, is used in GOliath. Each significant result from the functional enrichment analysis of the query genes is checked against the list of potentially biased categories and flagged up in the results file.
+
+
 
 ## Pre-processing of data on cluster
 ### Generating a gene info file for the mouse genome
@@ -29,10 +43,12 @@ Run this script to create the gene info file
 
 We'll import the gene info file so that we can plot the GC distribution for all 
 genes in the Mus_musculus.GRCm38.94.gtf.gz genome.
+
 There are import_GTF and parse_GTF_info functions within the GOcategoryStats 
 package but to get genome information i.e. GC content, the parsing and lookups 
 need to be done with access to genome information, so on the cluster. 
-The import_GTF and parse_GTF_info functions just work with the gtf file itself.
+The import_GTF and parse_GTF_info functions just work with the gtf file itself 
+which does not contain sequence content information.
 
 Import the processed gene info file
 
@@ -63,6 +79,16 @@ Category 6 - the public data required a separate, more extensive workflow.
 
 The processing of each of the 6 categories is detailed in the individual Rmarkdown documents.
 
+See closest_gene.Rmd - the generation of the genfo file was the same.
+We can use the genfo file created from that processing to generate the biased gene
+lists.
 
+Some other lists were generated on the cluster as the processing was fairly complicated.
+In particular, generating the sets of "closest genes" to random positions.
+I also have a script that quickly filters on various parameters, so have used 
+that for generating some gene lists. 
+
+To produce the lists of genes per chromosome, I'll do that within R as it's fairly
+simple and means not having to use the cluster and move more files around.
 
 

@@ -1,0 +1,136 @@
+---
+title: "GO_category_summary"
+author: "Laura Biggins"
+date: "22/08/2019"
+output:
+    html_document:
+        df_print: paged 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+```{r}
+library("devtools")
+load_all()
+library(tidyverse)
+library(DT)
+library(RColorBrewer)
+library(gridExtra)
+library(formattable)
+```
+
+## GO category summary
+
+This analysis is looking at the GO categories that have been identified using the biased methods of generating gene lists. 
+I'd like some summary statisitics.
+1. For each GO category in the file that was used to 
+
+where was the list of genes obtained from? I think this was a gtf file of all the genes in the genome, but how many of these 
+were in the GO categories?
+How many annotations does each gene have? This is getting in to territory that has been explored elsewhere.
+
+I think we want to establish which of our results can identify biases in the data rather than just general rubbish. 
+
+I generated completely random lists of genes and run these through the same gene ontology analysis. Two gene sets out of 200 returned any results at all.
+
+Could it be that the genes that have interesting properties, like length, location, high number of transcripts stand out from the rest so get studied
+more, get annotated more and therefore generate more significant GO results?
+
+Hopefully this is the case for some, and then for some, we can actually use these categories to identify biases.
+
+```{r import}
+#suspect_cats <- read_tsv("../data/suspect_categories.txt")
+suspect_cats <- read_tsv("../data/suspect_categories_archive.txt")
+
+suspect_cats %>%
+  count(bias_source) %>%
+  arrange(desc(n))
+
+suspect_cats %>%
+  count(GO_ID) %>%
+  count(n)
+
+get_IDs_in_category <- function(category){
+  
+    filter(suspect_cats, bias_source == category) %>%
+      pull(GO_ID)
+}  
+
+all_bias_categories <- suspect_cats %>%
+  distinct(bias_source) %>%
+  pull(bias_source)
+
+get_count_for_cat <- function(category){
+  suspect_cats %>%
+  filter(GO_ID %in% get_IDs_in_category(category)) %>%
+  count(GO_ID) %>%
+  count(n)
+}
+```
+
+```{r, fig.width = 12}
+plot_category_counts <- function(category){
+  
+  get_count_for_cat(category) %>%
+    ggplot(aes(x = n, y = nn)) + 
+    geom_bar(stat = "identity") + 
+    ggtitle(category) + 
+    xlab("Number of bias sources a GO category was found in") + 
+    ylab("Number of GO categories")
+}
+p <- lapply(all_bias_categories, plot_category_counts)
+
+for (i in seq(0, to = 16, by = 4)){
+  grid.arrange(p[[1+i]], p[[2+i]], p[[3+i]], p[[4+i]], ncol = 4)
+}
+grid.arrange(p[[21]], p[[22]], p[[23]], ncol = 3)
+```
+
+
+```{r, fig.width=12}
+suspect_cats <- suspect_cats %>%
+  mutate(bias_type = if_else(grepl("chr", bias_source), "chr", bias_source)) %>%
+  mutate(bias_type = str_replace_all(bias_type, "very_high_transcripts", "high_transcripts")) %>%
+  mutate(bias_type = str_replace_all(bias_type, "vv_high_transcripts", "high_transcripts")) %>%
+  mutate(bias_type = str_replace_all(bias_type, "very_long", "long"))
+
+plot_more_detail <- function(category){
+  suspect_cats %>%
+    filter(GO_ID %in% get_IDs_in_category(category)) %>%
+    count(GO_ID) %>%
+    right_join(suspect_cats) %>%
+    arrange(desc(n)) %>%
+    group_by(n) %>%
+    count(bias_type) %>%
+    ggplot(aes(x = n, y = nn, fill = bias_type)) + 
+      geom_bar(stat = "identity") +
+      ggtitle(category) +
+      xlab("Number of bias sources GO category appeared in") + 
+      ylab("Number of GO categories")
+}
+
+p <- lapply(all_bias_categories, plot_more_detail)
+names(p) <- all_bias_categories
+
+grid.arrange(p[["high_transcripts"]], p[["long"]], ncol = 2)
+grid.arrange(p[["very_high_transcripts"]], p[["vv_high_transcripts"]], ncol = 2)
+grid.arrange(p[["very_long"]], p[["very_short"]], ncol = 2)
+grid.arrange(p[["public_data"]], p[["closest_genes"]], ncol = 2)
+grid.arrange(p[["low_GC"]], p[["very_low_GC"]], ncol = 2)
+grid.arrange(p[["chr11"]], p[["chr12"]], ncol = 2)
+grid.arrange(p[["chr17"]], p[["chr18"]], ncol = 2)
+grid.arrange(p[["chr19"]], p[["chrMT"]], ncol = 2)
+
+```
+
+I'd like to look at how many categories a gene is annotated with, as I think that might affect this.
+
+
+
+
+
+
+
+

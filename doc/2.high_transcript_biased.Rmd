@@ -25,6 +25,12 @@ palette(brewer.pal(6, "Paired"))
 genome <- "Mus_musculus.GRCm38.94"
 ```
 
+Set a cut-off for the minimum number of times a category must appear in the 100 tests.
+```{r}
+min_appearances <- 30
+```
+
+
 Generate lists of mouse genes by number of transcripts.
 In the mouse genome, most genes have only one transcript, but some have many more.         
 Do sets of genes with high numbers of transcripts produce significant results in GO
@@ -329,10 +335,6 @@ text(1:length(ordered_categories),
 
 ```
 
-Set a cut-off for the minimum number of times a category must appear in the 100 tests.
-```{r}
-min_appearances <- 15
-```
 
 
 Replot just showing the data for categories that appeared >= `r min_appearances` times

@@ -24,6 +24,12 @@ par(mar = par()$mar * 0.7)
 genome <- "Mus_musculus.GRCm38.94"
 ```
 
+Set a cut-off for the minimum number of times a category must appear in the 100 tests.
+```{r}
+min_appearances <- 30
+```
+
+
 Generate lists of mouse genes biased by the length of the genes.
 
 ### Import the gene info file       
@@ -364,10 +370,6 @@ text(1:length(ordered_categories),
      labels = paste0("n = ", sapply(ordered_categories, length))
      )
 
-```
-Set a cut-off for the minimum number of times a category must appear in the 100 tests.
-```{r}
-min_appearances <- 15
 ```
 
 ```{r filter}

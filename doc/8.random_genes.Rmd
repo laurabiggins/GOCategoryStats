@@ -1,0 +1,87 @@
+---
+title: "1.Length biased gene sets"
+author: "Laura Biggins"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+display_code <- FALSE
+knitr::opts_knit$set(global.par = TRUE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = display_code)
+```
+
+```{r}
+library(devtools)
+load_all()
+library(tidyverse)
+
+genome <- "Mus_musculus.GRCm38.94"
+```
+
+Set a cut-off for the minimum number of times a category must appear in the 100 tests.
+```{r}
+min_appearances <- 15
+```
+
+
+Generate lists of mouse genes biased by the length of the genes.
+
+### Import the gene info file       
+
+The gene info file contains the lengths of all the genes in the mouse genome. 
+These can be plotted so that some thresholds for length categories can be determined.
+```{r}
+genfo_file_name <- paste0("../data/", genome, "_gene_info.txt")
+column_types <- "cccddcccddd"
+genfo <- read_tsv(genfo_file_name, col_types = column_types)
+
+bg_genes <- genfo %>%
+              select(gene_name) %>%
+              distinct() 
+```
+
+
+```{r}
+bg_genes <- bg_genes[[1]]
+
+random_genes <- sapply(1:100, function(i){
+  bg_genes[ceiling(runif(200, min = 0, max = length(bg_genes) - 1))]
+})
+```
+
+### GO overrepresentation analysis
+         
+Run the gene lists through a GO overrepresentation analysis.
+
+```{r overrep, eval = FALSE}
+go_results1 <- overrep_test(all_go_categories, random_genes[,1], bg_genes)
+go_results1
+
+random_gene_results <- apply(random_genes, 2, function(query){
+  overrep_test(all_go_categories, query, bg_genes)#, pval_threshold = 0.2)
+})
+
+save(random_gene_results, file = "../data/random_genes.rda")
+```
+
+We don't want to run the GO analysis each time the document is knitted as it takes
+too long. The code was run once and the data saved as an .rda object that can be 
+quickly loaded in to the R session.
+
+See how many significant categories were returned.
+```{r check_results}
+load("../data/random_genes.rda")
+
+sum(sapply(random_gene_results, is.null))
+
+not_null <- !(sapply(random_gene_results, is.null))
+filt <- random_gene_results[not_null]
+
+filt[[1]]
+filt[[2]]
+```
+
+Only `r sum(!sapply(random_gene_results, is.null))` sets of genes out of 200 returned any significant results which is reassuring.
+

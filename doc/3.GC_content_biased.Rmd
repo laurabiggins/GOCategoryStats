@@ -24,6 +24,13 @@ palette(brewer.pal(6, "Set2"))
 genome <- "Mus_musculus.GRCm38.94"
 ```
 
+Set a cut-off for the minimum number of times a category must appear in the 100 tests.
+```{r}
+min_appearances <- 30
+```
+
+
+
 Why do we want these?
 GC biases can exist in datasets for a range of reasons. 
 PCR duplication
@@ -384,10 +391,6 @@ text(1:22,
      )
 ```
 
-Set a cut-off for the minimum number of times a category must appear in the 100 tests.
-```{r}
-min_appearances <- 15
-```
 
 
 Replot just showing the data for categories that appeared >= `r min_appearances` times

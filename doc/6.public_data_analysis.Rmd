@@ -140,8 +140,6 @@ par(mar = par()$mar * 0.7)
 
 genome <- "Mus_musculus.GRCm38.94"
 ```
-                  
-                     
                                        
 ### The 200 genes from each pair of samples that have the highest z-scores
                        
@@ -181,6 +179,7 @@ all_sig_categories <- unlist(sapply(all_go_results, rownames))
 tabled_categories <- table(all_sig_categories)
 ordered_categories <- tabled_categories[order(tabled_categories, decreasing = TRUE)]
 ```
+
 
 ```{r eval=FALSE}
 filename <- paste0("GO_summary_", length(top200), "_datasets.txt" )

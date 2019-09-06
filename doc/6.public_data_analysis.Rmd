@@ -147,7 +147,10 @@ genome <- "Mus_musculus.GRCm38.94"
 #files <- list.files(path = "D:/projects/biases/public_data/top_200", pattern = "top_200.txt", full.names = TRUE)
 files <- list.files(path = "M:/biased_gene_lists/public_data/top_200", pattern = "top_200.txt", full.names = TRUE)
 top200 <- lapply(files, function(x) scan(x, what = "character"))
+save(top200, file = "../data/top_200.rda")
+```
 
+```{r}
 genfo_file_name <- paste0("../data/", genome, "_gene_info.txt")
 genfo <- read.delim(genfo_file_name)
 bg_genes <- as.vector(unique(genfo$gene_name))
@@ -244,6 +247,7 @@ for (i in 1:5) {
 
 
 ```
+
 
 ```{r, warning = FALSE, eval = FALSE}
 bg_chr <- get_chromosomes(bg_genes, gene_info)

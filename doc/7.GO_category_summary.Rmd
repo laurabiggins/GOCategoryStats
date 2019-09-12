@@ -24,7 +24,7 @@ library(formattable)
 ## GO category summary
 
 This analysis is looking at the GO categories that have been identified using the biased methods of generating gene lists. 
-I'd like some summary statisitics.
+I'd like some summary statistics.
 1. For each GO category in the file that was used to 
 
 where was the list of genes obtained from? I think this was a gtf file of all the genes in the genome, but how many of these 
@@ -33,7 +33,7 @@ How many annotations does each gene have? This is getting in to territory that h
 
 I think we want to establish which of our results can identify biases in the data rather than just general rubbish. 
 
-I generated completely random lists of genes and run these through the same gene ontology analysis. Two gene sets out of 200 returned any results at all.
+I generated completely random lists of genes and ran these through the same gene ontology analysis. Two gene sets out of 200 returned any results at all.
 
 Could it be that the genes that have interesting properties, like length, location, high number of transcripts stand out from the rest so get studied
 more, get annotated more and therefore generate more significant GO results?
@@ -70,7 +70,8 @@ get_count_for_cat <- function(category){
 }
 ```
 
-```{r, fig.width = 12}
+```{r, fig.width = 12, echo = FALSE, eval = FALSE}
+# black and white plots with less detail than the ones in subsequent chunks
 plot_category_counts <- function(category){
   
   get_count_for_cat(category) %>%
@@ -89,43 +90,178 @@ grid.arrange(p[[21]], p[[22]], p[[23]], ncol = 3)
 ```
 
 
-```{r, fig.width=12}
+Add a bias_type column that is almost the same as bias_source, but groups some of the categories together so that if some categories are found in 2 datasets - eg. long and high transcripts, and long and very high transcripts, and long and vv high transcripts, this is just shown as long and high transcripts.
+This makes some of the plots clearer.
+```{r}
 suspect_cats <- suspect_cats %>%
   mutate(bias_type = if_else(grepl("chr", bias_source), "chr", bias_source)) %>%
   mutate(bias_type = str_replace_all(bias_type, "very_high_transcripts", "high_transcripts")) %>%
   mutate(bias_type = str_replace_all(bias_type, "vv_high_transcripts", "high_transcripts")) %>%
   mutate(bias_type = str_replace_all(bias_type, "very_long", "long"))
+```
 
+
+```{r, fig.width=12}
 plot_more_detail <- function(category){
   suspect_cats %>%
     filter(GO_ID %in% get_IDs_in_category(category)) %>%
     count(GO_ID) %>%
-    right_join(suspect_cats) %>%
+    left_join(suspect_cats) %>%
     arrange(desc(n)) %>%
     group_by(n) %>%
     count(bias_type) %>%
     ggplot(aes(x = n, y = nn, fill = bias_type)) + 
-      geom_bar(stat = "identity") +
+      geom_bar(stat = "identity", position = "dodge") +
       ggtitle(category) +
       xlab("Number of bias sources GO category appeared in") + 
-      ylab("Number of GO categories")
+      ylab("Number of GO categories") 
 }
 
 p <- lapply(all_bias_categories, plot_more_detail)
 names(p) <- all_bias_categories
 
-grid.arrange(p[["high_transcripts"]], p[["long"]], ncol = 2)
-grid.arrange(p[["very_high_transcripts"]], p[["vv_high_transcripts"]], ncol = 2)
-grid.arrange(p[["very_long"]], p[["very_short"]], ncol = 2)
+grid.arrange(p[["vv_high_transcripts"]], p[["very_high_transcripts"]], ncol = 2)
+grid.arrange(p[["high_transcripts"]], ncol = 2)
+grid.arrange(p[["very_long"]], p[["long"]], ncol = 2)
+
+```
+```{r, echo = FALSE}
+occurrence_count <- function(category, occurrences){
+    suspect_cats %>%
+    filter(GO_ID %in% get_IDs_in_category(category)) %>%
+    count(GO_ID) %>%
+    left_join(suspect_cats) %>%
+    arrange(desc(n)) %>%
+    group_by(n) %>%
+    count(bias_type) %>%
+    filter(n==occurrences) %>%
+    pull(nn) %>%
+    first()
+}
+```
+
+The vv high transcripts plot shows that `r occurrence_count("vv_high_transcripts", 1)` GO categories are identified only from the genes with a very high number of transcripts. Just under 100 are found in both high transcripts and long gene sets.                     
+
+Most (`r occurrence_count("very_high_transcripts", 1)`) of the categories identified from the very_high_transcripts set of genes are also only identified from that single category.              
+                        
+For the high transcripts there are still `r occurrence_count("high_transcripts", 1)` GO categories only identified from that single category, though more 
+`r occurrence_count("high_transcripts", 2)` are identified in 2 categories, the 2nd category being long genes.    
+
+The very_long set identified `r occurrence_count("very_long", 1)` GO categories unique to the very long set, though more (`r occurrence_count("very_long", 1)`) are found in both high transcripts and long sets
+
+```{r, fig.width=12}
+grid.arrange(p[["very_short"]], ncol = 2)
+
+grid.arrange(p[["low_GC"]], p[["very_low_GC"]], ncol = 2)
+```
+
+
+```{r, fig.width=12}
 grid.arrange(p[["public_data"]], p[["closest_genes"]], ncol = 2)
+```
+
+The closest gene set does not have any GO categories that are unique to the closest gene set. They all also appear in long, high_transcripts, and most appear in the public data sets as well. This seems to indicate that these categories find significance too easily. But, they didn't come up when completely random sets of genes were used, so it may be that these properties of genes have made them more likely to be investigated and annotated??            
+We'll try and look into this by seeing how many GO annotations these sets of genes have.
+
+The GC and chr plots make more sense when the categories are divided in to separate chromosomes.
+
+```{r, fig.width=12}
+plot_more_detail <- function(category){
+  suspect_cats %>%
+    filter(GO_ID %in% get_IDs_in_category(category)) %>%
+    count(GO_ID) %>%
+    left_join(suspect_cats) %>%
+    arrange(desc(n)) %>%
+    group_by(n) %>%
+    count(bias_source) %>%
+    ggplot(aes(x = n, y = nn, fill = bias_source)) + 
+      geom_bar(stat = "identity", position = "dodge") +
+      ggtitle(category) +
+      xlab("Number of bias sources GO category appeared in") + 
+      ylab("Number of GO categories") 
+}
+
+p <- lapply(all_bias_categories, plot_more_detail)
+names(p) <- all_bias_categories
+
 grid.arrange(p[["low_GC"]], p[["very_low_GC"]], ncol = 2)
 grid.arrange(p[["chr11"]], p[["chr12"]], ncol = 2)
 grid.arrange(p[["chr17"]], p[["chr18"]], ncol = 2)
 grid.arrange(p[["chr19"]], p[["chrMT"]], ncol = 2)
-
 ```
 
-I'd like to look at how many categories a gene is annotated with, as I think that might affect this.
+
+##GMT file
+```{r, echo = FALSE, eval = FALSE}
+go_cats_and_genes <- plyr::ldply(all_go_categories, rbind) 
+
+gathered_cats <- gather(go_cats_and_genes, -1, key = "gene2", value = "gene", na.rm = TRUE)
+
+gathered_cats <- plyr::rename(gathered_cats, c(".id" = "go_category"))
+
+gathered_cats <- gathered_cats %>% 
+  arrange(go_category) %>%
+  select(-gene2)
+
+save(gathered_cats, file = "../data/gathered_cats.rda")
+```
+
+```{r}
+# load the set of genes and GO categories - this is probably a very inefficient way of holding the data but it can be changed if it causes problems
+load("../data/gathered_cats.rda")
+load("../data/closest_gene.rda")
+all_genes <- unlist(closest_gene_lists)
+
+tabled_genes <- table(all_genes)
+tabled_genes <- tabled_genes[order(tabled_genes, decreasing = TRUE)]
+gene_counts  <- data.frame(gene_name = names(tabled_genes), n = as.vector(tabled_genes))
+
+categories_per_gene <- count(gathered_cats, gene)
+
+closest_gene_go_counts <- gene_counts %>%
+  mutate(gene_name = toupper(gene_name)) %>%
+  left_join(categories_per_gene, by = c("gene_name" = "gene")) %>%
+  replace_na(list(n.y = 0)) %>%
+  arrange(desc(n.y)) %>%
+  select(-n.x)
+
+closest_gene_go_counts <- plyr::rename(closest_gene_go_counts, c("n.y" = "no.GO_closest"))
+
+#go_counts %>%
+#  ggplot(aes(x = n.x, y = n.y)) +
+#  geom_point()
+
+#  rename(c("n.y" = "no.GO"))
+```
+
+```{r}
+# load the set of genes and GO categories - this is probably a very inefficient way of holding the data but it can be changed if it causes problems
+load("../data/top_200.rda")
+all_genes <- unlist(top200)
+
+tabled_genes <- table(all_genes)
+tabled_genes <- tabled_genes[order(tabled_genes, decreasing = TRUE)]
+gene_counts  <- data.frame(gene_name = names(tabled_genes), n = as.vector(tabled_genes))
+
+categories_per_gene <- count(gathered_cats, gene)
+
+public_go_counts <- gene_counts %>%
+  mutate(gene_name = toupper(gene_name)) %>%
+  left_join(categories_per_gene, by = c("gene_name" = "gene")) %>%
+  replace_na(list(n.y = 0)) %>%
+  arrange(desc(n.y)) %>%
+  select(-n.x)
+
+public_go_counts <- plyr::rename(public_go_counts, c("n.y" = "no.GO_public"))
+
+full_join(public_go_counts, closest_gene_go_counts)
+
+```  
+
+this does make sense because the number of GO categories is always going to be the same, it's just the genes that vary between the different sets. 
+
+
+**I'd like to look at how many categories a gene is annotated with, as I think that might affect this.**
 
 
 

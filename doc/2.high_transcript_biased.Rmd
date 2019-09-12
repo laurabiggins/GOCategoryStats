@@ -89,18 +89,6 @@ ggplot(genfo_temp , aes(x = no_of_transcripts)) + geom_histogram(fill = "seagree
 
 ```
 
-
-```{r, eval = FALSE, echo = FALSE}
-#The first set of thresholds that I generated
-thresholds <- c("10" = 10, "15" = 15, "20" = 20)
-sapply(thresholds, function(x) sum(genfo$no_of_transcripts >= x))
-#As there are only `r sum(genfo$no_of_transcripts >= 20)` genes with more that 20
-#transcripts, I won't include this category as the gene lists I'm using contain 
-#200 genes.
-#When I did test a min20 category, almost all the categories came up in the min15
-#set too.
-```
-
 #### Generating thresholds 
 Originally, I selected arbitrary thresholds of minimum 10, 15 and 20 transcripts per gene. 
 These seemed like reasonable numbers to choose and plenty of functional categories were identified in the overrepresentation tests.
@@ -140,21 +128,6 @@ biased_transcripts <- lapply(names(all_genes_in_group), function(x){
 names(biased_transcripts) <- names(all_genes_in_group)
 ```
 
-```{r, eval = FALSE}
-all_min10 <- genfo$gene_name[genfo$no_of_transcripts >= 10]
-all_min15 <- genfo$gene_name[genfo$no_of_transcripts >= 15]
-
-min10_genes <- sapply(1:100, function(i){
-  all_min10[ceiling(runif(200, min = 0, max = length(all_min10) - 1))]
-})
-
-min15_genes <- sapply(1:100, function(i){
-  all_min15[ceiling(runif(200, min = 0, max = length(all_min15) - 1))]
-})
-
-biased_transcripts <- list(min10 = min10_genes, min15 = min15_genes)
-
-```
 
 Check they all look right
 ```{r, fig.height = 7, fig.width = 6}
@@ -171,8 +144,8 @@ boxplot(transcript_numbers, col = 1, ylab = "number of transcripts per gene")
          
 Run the gene lists through a GO overrepresentation analysis.
 
-```{r, eval=FALSE}
-#save(biased_transcripts, file = "M:/temp/biased_transcripts/biased_transcripts.rda")
+```{r}
+save(biased_transcripts, file = "../data/biased_transcripts.rda")
 
 x <- overrep_test(all_go_categories, query_genes = biased_transcripts[[1]][,1], bg_genes)
 

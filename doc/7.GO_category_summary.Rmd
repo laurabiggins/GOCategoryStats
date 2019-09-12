@@ -41,7 +41,7 @@ Hopefully this is the case for some, and then for some, we can actually use thes
 
 ```{r import}
 #suspect_cats <- read_tsv("../data/suspect_categories.txt")
-suspect_cats <- read_tsv("../data/suspect_categories_archive.txt")
+suspect_cats <- read_tsv("../data/suspect_categories_archive.txt") # I think this was the 30 limit
 suspect_cats %>%
   count(bias_source) %>%
   arrange(desc(n))
@@ -178,7 +178,8 @@ grid.arrange(p[["chr19"]], p[["chrMT"]], ncol = 2)
 ```
 
 
-##GMT file
+## GMT file               
+
 ```{r, echo = FALSE, eval = FALSE}
 go_cats_and_genes <- plyr::ldply(all_go_categories, rbind) 
 gathered_cats <- gather(go_cats_and_genes, -1, key = "gene2", value = "gene", na.rm = TRUE)
@@ -192,46 +193,108 @@ save(gathered_cats, file = "../data/gathered_cats.rda")
 ```{r}
 # load the set of genes and GO categories - this is probably a very inefficient way of holding the data but it can be changed if it causes problems
 load("../data/gathered_cats.rda")
+categories_per_gene <- count(gathered_cats, gene)
+
+
+
 load("../data/closest_gene.rda")
 all_genes <- unlist(closest_gene_lists)
 tabled_genes <- table(all_genes)
 tabled_genes <- tabled_genes[order(tabled_genes, decreasing = TRUE)]
 gene_counts  <- data.frame(gene_name = names(tabled_genes), n = as.vector(tabled_genes))
-categories_per_gene <- count(gathered_cats, gene)
-closest_gene_go_counts <- gene_counts %>%
-  mutate(gene_name = toupper(gene_name)) %>%
-  left_join(categories_per_gene, by = c("gene_name" = "gene")) %>%
-  replace_na(list(n.y = 0)) %>%
-  arrange(desc(n.y)) %>%
-  select(-n.x)
-closest_gene_go_counts <- plyr::rename(closest_gene_go_counts, c("n.y" = "no.GO_closest"))
-#go_counts %>%
-#  ggplot(aes(x = n.x, y = n.y)) +
-#  geom_point()
-#  rename(c("n.y" = "no.GO"))
+
 ```
+
+
 
 ```{r}
 # load the set of genes and GO categories - this is probably a very inefficient way of holding the data but it can be changed if it causes problems
-load("../data/top_200.rda")
-all_genes <- unlist(top200)
+load("../data/gathered_cats.rda")
+load("../data/closest_gene.rda")
+all_genes <- unlist(closest_gene_lists)
 tabled_genes <- table(all_genes)
 tabled_genes <- tabled_genes[order(tabled_genes, decreasing = TRUE)]
-gene_counts  <- data.frame(gene_name = names(tabled_genes), n = as.vector(tabled_genes))
+
+gene_counts  <- data.frame(gene_name = names(tabled_genes), n_closest = as.vector(tabled_genes))
+
 categories_per_gene <- count(gathered_cats, gene)
-public_go_counts <- gene_counts %>%
+
+closest_gene_go_counts <- gene_counts %>%
   mutate(gene_name = toupper(gene_name)) %>%
-  left_join(categories_per_gene, by = c("gene_name" = "gene")) %>%
-  replace_na(list(n.y = 0)) %>%
-  arrange(desc(n.y)) %>%
-  select(-n.x)
-public_go_counts <- plyr::rename(public_go_counts, c("n.y" = "no.GO_public"))
-full_join(public_go_counts, closest_gene_go_counts)
+  full_join(categories_per_gene, by = c("gene_name" = "gene")) %>%
+  replace_na(list(n_closest = 0)) %>%
+  arrange(desc(n))
+
+go_annot_summary <- plyr::rename(closest_gene_go_counts, c("n" = "n_GO_cats"))
+
+```
+
+
+```{r}
+# load the set of genes and GO categories - this is probably a very inefficient way of holding the data but it can be changed if it causes problems
+load("../data/top_200.rda") # the public data
+all_genes <- unlist(top200)
+go_annot_summary <- count(as.data.frame(all_genes), all_genes) %>%
+  plyr::rename(c("all_genes" = "gene_name", "n" = "n_public")) %>%
+  mutate(gene_name = toupper(gene_name)) %>%
+  full_join(go_annot_summary) %>%
+  replace_na(list(n_public = 0))  %>%
+  arrange(desc(n_public))
+
+# the top couple of genes from the public set are not in the gmt file
+
+load("../data/biased_transcripts.rda")
+process_transcript_genes <- function(list_name){
+  all_genes <- as.vector(unlist(biased_transcripts[[list_name]]))
+  column_name <- paste0("n_", list_name)
+  count(as.data.frame(all_genes), all_genes) %>%
+  plyr::rename(c("all_genes" = "gene_name", "n" = column_name)) %>%
+  mutate(gene_name = toupper(gene_name)) %>%
+  right_join(go_annot_summary)
+}
+  
+go_annot_summary <- process_transcript_genes("0.9")
+go_annot_summary <- process_transcript_genes("0.95")
+go_annot_summary <- process_transcript_genes("0.99")
+
+go_annot_summary <- go_annot_summary %>%
+   replace(is.na(.), 0) %>%
+   mutate(transcript_total = rowSums(.[2:4]))
+
+go_annot_summary <- go_annot_summary %>%
+  mutate(min_per_row = apply(go_annot_summary[,c(5,6,8)], 1, min))
+ 
+go_annot_summary <- go_annot_summary %>%
+  mutate(median_per_row = apply(go_annot_summary[,c(5,6,8)], 1, median)) 
+
+plot(go_annot_summary$min_per_row, go_annot_summary$n_GO_cats)
+plot(go_annot_summary$median_per_row, go_annot_summary$n_GO_cats)
+
+plot(density(go_annot_summary$n_GO_cats))
+
+go_annot_no_0 <- filter(go_annot_summary, n_GO_cats > 0)
+plot(density(go_annot_no_0$n_GO_cats))
+
+#boxplot(log2((go_annot_no_0$n_GO_cats)))
 ```  
 
-this does make sense because the number of GO categories is always going to be the same, it's just the genes that vary between the different sets. 
+Not really sure what to do with this...
+
+Select some genes to make an example gene list for GOliath
+```{r}
+g1 <- filter(go_annot_summary, transcript_total <2 & n_public < 2 & n_closest < 2 & n_GO_cats > 1) %>%
+  pull(gene_name)
 
 
-**I'd like to look at how many categories a gene is annotated with, as I think that might affect this.**
+
+eg_set_of_genes <- g1[ceiling(runif(200, min = 0, max = length(g1) - 1))]
+
+```
+
+```{r}
+x <- c("GM14483", "SSXB10", "FAM87B", "MINOS1-NBL1", "SMAP2","CTPS1", "MOB3C", "DLEU2L", "KIAA1324", "CD58","ZNF697", "IL6R", "SLAMF9", "SH2D1B", "FASLG","LINC01686", "PACERR", "FAM89A", "GCSAML", "LUCAT1","EPB41L4A", "GRAMD2B", "TXNDC15", "LINC01024", "SMIM3","LINC01366", "PXDC1", "HCG18", "TRIM39-RPP21", "MICA","HCP5", "MICB")
+
+```
+
 
 

@@ -1,29 +1,47 @@
 ---
 title: "5.Closest genes to random positions"
 author: "Laura Biggins"
+date: "`r Sys.Date()`"
 output:
-  html_document:
-    df_print: paged
+  rmdformats::readthedown:
+    highlight: kate
 ---
 
 TODO: see whether any genes in particular come up in the lists.
 https://www.datacamp.com/community/tutorials/tidyverse-exploratory-analysis
 
-```{r setup, include=FALSE}
+
+```{r setup, echo=FALSE, cache=FALSE, message = FALSE}
+library(knitr)
+library(rmdformats)
+## Global options
+options(max.print="75")
 display_code <- FALSE
-knitr::opts_knit$set(global.par = TRUE)
-knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = display_code)
+knitr::opts_knit$set(global.par = TRUE, width=75)
+knitr::opts_chunk$set(echo=display_code,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+
+library(rmdformats)
+library(devtools)
+load_all()
 ```
 
+
 ```{r}
-library("devtools")
-load_all()
+#library("devtools")
+#load_all()
 
 library(RColorBrewer)
 palette(brewer.pal(6, "Set2"))
 
 library(tidyverse)
 library(skimr)
+library(DT)
 
 par(mgp = c(2, 0.5, 0))
 par(mar = par()$mar * 0.7)
@@ -129,7 +147,7 @@ Concatenate the files:
 ![closest genes image](images/closest_genes.png)
                         
 The first gene on the chromosome is highlighted on the SeqMonk plot. 
-Label the first genes and redo the plot.
+
 ```{r}
 x <- split(genfo, f = genfo$chromosome)
 y <- lapply(x, head, n = 1)
@@ -146,30 +164,38 @@ gene_counts <- genfo %>%
   dplyr::select(gene_name, length) %>%
   right_join(gene_counts) %>%
   mutate(longer_than_1mb = length > 1000000)
+```
 
-gene_counts
+```{r barplots, eval = FALSE}
+#, out.width=c('50%', '50%'), fig.show='hold'}
+library(plotly)
 
-gene_counts %>%
+p1 <- gene_counts %>%
   head(n = 30) %>%
   ggplot(aes(x = fct_reorder(gene_name, n), y = n, fill = first_genes)) + 
   geom_col() + 
   coord_flip() +
   labs(x = "gene")
 
-gene_counts %>%
+p2 <- gene_counts %>%
   head(n = 30) %>%
   ggplot(aes(x = fct_reorder(gene_name, n), y = n, fill = longer_than_1mb)) + 
   geom_col() + 
   coord_flip() +
   labs(x = "gene")
+#ggplotly(p1)
+#ggplotly(p2)
+```
 
+```{r}
 gene_counts <- gene_counts %>%
   mutate(gene_characteristics = ifelse(first_genes == "yes", "first_gene", NA)) 
 
 # cringy code but it wasn't working the other ways I tried
 gene_counts$gene_characteristics[gene_counts$longer_than_1mb] <- "long_gene"
 gene_counts$gene_characteristics[gene_counts$first_genes == "yes" && gene_counts$longer_than_1mb] <- "first and long"
-gene_counts
+
+datatable(gene_counts)
 
 gene_counts %>%
   head(n = 30) %>%
@@ -177,9 +203,6 @@ gene_counts %>%
   geom_col() + 
   coord_flip() +
   labs(x = "gene")
-
-#!! make a vector of first_gene, longer than 1mb, and both
-
 ```
 
 ### Plot number of times a gene appeared vs its length
@@ -191,18 +214,18 @@ genfo$first_genes <- "no"
 
 genfo$first_genes[genfo$gene_name %in% first_genes_vec] <- "yes"
 
-genfo %>%
-  group_by(chromosome)
+#genfo %>%
+#  select_if(is.numeric) %>%
+#  skim()
 
-genfo %>%
-  select_if(is.numeric) %>%
-  skim()
-
-plot(genfo$occurrences, log2(genfo$length), cex = 0.7, pch = 16)
+#plot(genfo$occurrences, log2(genfo$length), cex = 0.7, pch = 16)
 
 ggplot(genfo, aes(x = occurrences, y = log2(length), color = first_genes)) +
-  geom_point(size = 0.9)
-  
+  geom_point()#size = 0.9)
+```
+
+
+```{r density_plot}  
 library(MASS)
 library(ggplot2)
 library(viridis)
@@ -218,11 +241,15 @@ density_values <- get_density(genfo$occurrences, log2(genfo$length), n = 75)
 ggplot(genfo) +
   geom_point(aes(x = occurrences, y = log2(length), color = density_values)) +
   scale_colour_viridis()
+```
 
-genfo %>%
+```{r, eval = FALSE}
+p <- genfo %>%
   subset(occurrences > 5) %>%
   ggplot() + geom_point(aes(x = occurrences, y = log2(length), color = first_genes))
-  
+
+#ggplotly(p)
+p  
 ```
 
 ## Gene ontology analysis
@@ -246,28 +273,11 @@ load("../data/closest_gene.rda")
 nulls_removed <- closest_gene_results[lapply(closest_gene_results,length) != 0]
 number_of_results <- vapply(nulls_removed, nrow, FUN.VALUE = numeric(1))
 ```
-  
+
+Each of the 200 sets of genes was run through a gene ontology analysis  
 
 The number of gene sets that returned significant results from the GO 
 overrepresentation analysis 
-
-The bean plots show the number of categories returned from each gene list.
-The null results have been removed.
-```{r beanplots}
-library(beanplot)
-options(scipen = 999) # disable the scientific notation
-
-beanplot(
-  number_of_results, 
-  what   = c(0,1,0,1), 
-  col    = c("#1B9E77","#06086d"), 
-  ll     = 0.03, 
-  method = "jitter", 
-  border = "#06086d",
-  las    = 1,
-  main   = "number of significant categories per gene list returned from GO analysis"
-)
-```
 
 ```{r}
 all_sig_categories <- unlist(sapply(nulls_removed, rownames))
@@ -289,25 +299,38 @@ names(filtered_categories_vec) <- names(filtered_categories)
 ```
 
 ```{r}
+par(mfrow = c(1,2))
+
+beanplot(
+  number_of_results, 
+  what   = c(0,1,0,1), 
+  col    = c("#1B9E77","#06086d"), 
+  ll     = 0.03, 
+  method = "jitter", 
+  border = "#06086d",
+  las    = 1,
+  main   = "no of results per gene list"
+)
+
 boxplot(filtered_categories_vec,
         main = paste0("GO category appearances (>", min_appearances, ")"),
         ylab = "no of times GO category appeared",
         pch  = 16,
         cex  = 0.5,
-        col  = 1,
+        col  = "#1B9E77",
         las = 1,
         cex.axis = 0.8
         )
 
 ```
-
+Each line on the beanplot shows the number of significant (corrected p-value < 0.05) functional categories returned from gene ontology analysis.
 
 ```{r }
 suspects <- names(ordered_categories[ordered_categories >= min_appearances])
 ```
 
 
-```{r}
+```{r, eval = FALSE}
 filename <- "../data/closest_genes.txt"
   
 output_file <- file(filename, "wb")

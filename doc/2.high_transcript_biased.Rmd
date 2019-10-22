@@ -1,47 +1,60 @@
 ---
 title: "2.High transcript biased gene sets"
+date: "`r Sys.Date()`"
 output:
-  html_document:
-    df_print: paged
+  rmdformats::readthedown:
+    highlight: kate
 ---
 
-```{r setup, include=FALSE}
+```{r setup, echo=FALSE, cache=FALSE, message = FALSE}
+library(knitr)
+library(rmdformats)
+library(RColorBrewer)
+
+## Global options
+options(max.print="75")
 display_code <- FALSE
-knitr::opts_knit$set(global.par = TRUE)
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, echo = display_code)
+knitr::opts_knit$set(global.par = TRUE, width=75)
+knitr::opts_chunk$set(echo=display_code,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+
+library(devtools)
+load_all()
 ```
 
 
+
 ```{r}
-library("devtools")
-
-load_all()
-
 par(mgp = c(2, 0.5, 0))
 par(mar = par()$mar * 0.7)
-library(RColorBrewer)
+
 palette(brewer.pal(6, "Paired"))
 
 genome <- "Mus_musculus.GRCm38.94"
 ```
 
-Set a cut-off for the minimum number of times a category must appear in the 100 tests.
+
 ```{r}
+#Set a cut-off for the minimum number of times a category must appear in the 100 tests.
 min_appearances <- 30
 ```
 
 
-Generate lists of mouse genes by number of transcripts.
+### Generate lists of mouse genes by number of transcripts.      
+
 In the mouse genome, most genes have only one transcript, but some have many more.         
 Do sets of genes with high numbers of transcripts produce significant results in GO
 overrepresentation analysis?          
   
 
-### Pre-processing of data on cluster
+## Number of transcripts per gene
 
-Import the genfo file as described in 0.Generating biased gene lists : pre-processing. 
-
-This can be used to plot the distribution of the number of transcripts per gene 
+The pre-processed gene info file can be used to plot the distribution of the number of transcripts per gene 
 in the `r genome` genome.
 
 ```{r}
@@ -89,7 +102,7 @@ ggplot(genfo_temp , aes(x = no_of_transcripts)) + geom_histogram(fill = "seagree
 
 ```
 
-#### Generating thresholds 
+## Thresholds 
 Originally, I selected arbitrary thresholds of minimum 10, 15 and 20 transcripts per gene. 
 These seemed like reasonable numbers to choose and plenty of functional categories were identified in the overrepresentation tests.
 
@@ -101,18 +114,28 @@ transcript_thresholds <- quantile(genfo$no_of_transcripts, probs = probabilities
 gene_counts <- sapply(transcript_thresholds, function(x) sum(genfo$no_of_transcripts >= x))
 
 thresholds <- data.frame(transcript_thresholds, probabilities, gene_counts)
-thresholds
 ```
 
-It worked nicely for the gene lengths to plot out the numbers on graphs but the 
-distribution here doesn't plot quite so well.
+<div class = "row">
 
+<div class = "col-md-8">
 ```{r}
+DT::datatable(thresholds, options = list(dom = 't'))
+```
+</div>
+<br>
+</div>
+
+
+
+```{r, eval = FALSE}
+#It worked nicely for the gene lengths to plot out the numbers on graphs but the 
+#distribution here doesn't plot quite so well.
 dens <- density(genfo$no_of_transcripts, adjust = 5)
 plot(dens, xlim = c(-2,16))
 ```
 
-### Generating the biased gene lists within R
+## Generating the biased gene sets
 
 ```{r generate_gene_lists}
 all_genes_in_group <- sapply(thresholds$transcript_thresholds, function(x){
@@ -128,23 +151,51 @@ biased_transcripts <- lapply(names(all_genes_in_group), function(x){
 names(biased_transcripts) <- names(all_genes_in_group)
 ```
 
-
-Check they all look right
-```{r, fig.height = 7, fig.width = 6}
+<div class = "row">
+  
+<div class = "col-md-6">
+<br><br>
+1. Select the subset of genes with high numbers of transcripts.
+<br><br>
+2. Randomly select 200 genes.
+<br><br>
+3. Repeat 100 times.
+<br><br>
+Repeat this for each transcript category.
+<br><br>
+The boxplot shows the distribution of transcript numbers for the genes in the biased sets.
+</div>
+  
+<div class = "col-md-6">
+```{r, fig.height = 5, fig.width = 5}
 par(mfrow = c(1, 1))
 
 transcript_numbers <- lapply(biased_transcripts, function(x) {
   genfo$no_of_transcripts[match(unlist(x), genfo$gene_name)]
 })
 
-boxplot(transcript_numbers, col = 1, ylab = "number of transcripts per gene")
+#boxplot(transcript_numbers, col = 1, ylab = "number of transcripts per gene", xlab = "threshold")
+
+library(magrittr)
+
+tibble::as_tibble(transcript_numbers) %>%
+  tidyr::pivot_longer(tidyselect::everything(), names_to = "threshold", values_to = "no of transcripts") %>%
+  ggplot(aes(x = threshold, y = `no of transcripts`)) +
+    geom_boxplot(fill = "#1B9E77")
+
 ```
 
-### GO overrepresentation analysis
-         
-Run the gene lists through a GO overrepresentation analysis.
+</div>
+</div>
+<br><br>
 
-```{r}
+## GO over representation analysis
+   
+```{r, eval = FALSE}
+# We don't want to run the analysis each time the document is knitted as it takes
+# too long. The code was run once and the data saved as an .rda object that can be 
+# quickly loaded in to the R session.
+
 save(biased_transcripts, file = "../data/biased_transcripts.rda")
 
 x <- overrep_test(all_go_categories, query_genes = biased_transcripts[[1]][,1], bg_genes)
@@ -160,12 +211,9 @@ names(transcript_results) <- names(biased_transcripts)
 
 save(transcript_results, file = "../data/transcript_results.rda")
 ```
-  
-We don't want to run the analysis each time the document is knitted as it takes
-too long. The code was run once and the data saved as an .rda object that can be 
-quickly loaded in to the R session.
- 
-See how many significant categories were returned. 
+
+The biased sets of genes were run through a GO over-representation analysis. 
+
 ```{r}
 load("../data/transcript_results.rda")
 
@@ -177,15 +225,20 @@ number_of_results <- lapply(transcript_results, function(x){
 ```
   
 
-The number of gene sets that returned significant results from the GO 
+<div class = "row">
+<div class = "col-md-5">
+<br>
+The table shows the number of gene sets that returned significant results from the GO 
 overrepresentation analysis 
 ```{r}
-sapply(number_of_results, length)
+total_results <- tibble::enframe(sapply(number_of_results, length), name = "threshold", value = "results")
+DT::datatable(total_results, options = list(dom = 't'))
 ```
-
-The bean plots show the number of categories returned from each gene list.
-The null results have been removed.
-```{r beanplots, fig.width = 10, fig.height = 8}
+<br>
+The bean plot shows the number of significant categories per gene list returned from the GO analysis. 
+</div>  
+<div class = "col-md-7">
+```{r beanplots, fig.width = 5, fig.height = 5}
 library(beanplot)
 options(scipen = 999) # disable the scientific notation
 
@@ -197,12 +250,12 @@ beanplot(
   method = "jitter", 
   border = "#06086d",
   las    = 1,
-  main   = "number of significant categories per gene list returned from GO analysis"
+  ylab   = "number of categories"
 )
 ```
-
+</div> 
+</div> 
           
-Plot out the p and q values.
 ```{r p_values, fig.height = 8, results = FALSE, eval = FALSE, echo = FALSE}
 p_and_q <- lapply(transcript_results, function(x){
   pvals <- unlist(sapply(x, `[[`, "pval"))
@@ -274,7 +327,7 @@ ordered_categories <- lapply(transcript_results, function(transcript_subset){
 
 ```
 
-Plot how many times a category appeared.
+## GO category occurrences
 ```{r, fig.height=3, results=FALSE, eval = FALSE}
 par(mfrow = c(1,2))
 sapply(names(ordered_categories), function(x){
@@ -282,8 +335,8 @@ sapply(names(ordered_categories), function(x){
 })
 ```
 
-```{r beanplot2}
-par(mfrow = c(1,1))
+```{r beanplot2, fig.width = 12}
+par(mfrow = c(1,2))
 
 beanplot(
   ordered_categories, 
@@ -295,7 +348,7 @@ beanplot(
   las    = 1,
   log    = "",
   ylim   = c(0, 120),
-  main  = "number of times a GO category appeared during the 100 tests",
+  main  = "GO category appearances during the 100 tests",
   ylab  = "no of times GO category appeared"
 )
 
@@ -305,13 +358,6 @@ text(1:length(ordered_categories),
      labels = paste0("n = ", sapply(ordered_categories, length))
      )
 
-
-```
-
-
-
-Replot just showing the data for categories that appeared >= `r min_appearances` times
-```{r beanplot_filtered}
 filtered_categories <- lapply(ordered_categories, function(x) x[x >= min_appearances])
 
 beanplot(
@@ -335,6 +381,8 @@ text(1:length(filtered_categories),
      )
 
 ```
+Replot just showing the data for categories that appeared >= `r min_appearances` times
+
 
 Now we could do with some stats to pick a cutoff for the number of times a 
 category appears. Let's just select an arbitrary value for now....
@@ -347,7 +395,7 @@ suspects <- lapply(ordered_categories, function(x){
 ```  
 
 ### Deduplicate
-#### Number of overlapping functional terms between the thresholds
+
 ```{r}
 print_overlaps <- function(set1, set2, not_in = FALSE) {
   ifelse(
@@ -356,10 +404,9 @@ print_overlaps <- function(set1, set2, not_in = FALSE) {
     sum(set1 %in% set2)
   )
 }
-
-print_overlaps(suspects$`0.99`, suspects$`0.95`)
-print_overlaps(suspects$`0.99`, suspects$`0.9`)
-print_overlaps(suspects$`0.95`, suspects$`0.9`)
+#print_overlaps(suspects$`0.99`, suspects$`0.95`)
+#print_overlaps(suspects$`0.99`, suspects$`0.9`)
+#print_overlaps(suspects$`0.95`, suspects$`0.9`)
 
 
 #There are `r print_overlaps(suspects$`0.95`, suspects$`0.9`)` overlapping categories

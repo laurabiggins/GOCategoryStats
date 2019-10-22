@@ -1,0 +1,10 @@
+base
+knitr
+rmdformats
+RColorBrewer
+usethis
+devtools
+GOcategoryStats
+ggplot2
+beanplot
+magrittr

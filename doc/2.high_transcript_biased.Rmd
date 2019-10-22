@@ -236,6 +236,7 @@ DT::datatable(total_results, options = list(dom = 't'))
 ```
 <br>
 The bean plot shows the number of significant categories per gene list returned from the GO analysis. 
+
 </div>  
 <div class = "col-md-7">
 ```{r beanplots, fig.width = 5, fig.height = 5}

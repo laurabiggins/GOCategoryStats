@@ -1,20 +1,34 @@
 ---
 title: "1.Length biased gene sets"
 author: "Laura Biggins"
+date: "`r Sys.Date()`"
 output:
-  html_document:
-    df_print: paged
+  rmdformats::readthedown:
+    highlight: kate
 ---
 
-```{r setup, include=FALSE}
+```{r setup, echo=FALSE, cache=FALSE, message = FALSE}
+library(knitr)
+library(rmdformats)
+## Global options
+options(max.print="75")
 display_code <- FALSE
-knitr::opts_knit$set(global.par = TRUE)
-knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = display_code)
-```
+knitr::opts_knit$set(global.par = TRUE, width=75)
+knitr::opts_chunk$set(echo=display_code,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
 
-```{r}
+library(rmdformats)
 library(devtools)
 load_all()
+```
+
+
+```{r}
 library(RColorBrewer)
 palette(brewer.pal(6, "Set2"))
 
@@ -24,26 +38,24 @@ par(mar = par()$mar * 0.7)
 genome <- "Mus_musculus.GRCm38.94"
 ```
 
-Set a cut-off for the minimum number of times a category must appear in the 100 tests.
+
 ```{r}
+# Set a cut-off for the minimum number of times a category must appear in the 100 tests.
 min_appearances <- 30
 ```
 
-
 Generate lists of mouse genes biased by the length of the genes.
 
-### Import the gene info file       
-
-The gene info file contains the lengths of all the genes in the mouse genome. 
-These can be plotted so that some thresholds for length categories can be determined.
-```{r}
+```{r import_genfo}
 genfo_file_name <- paste0("../data/", genome, "_gene_info.txt")
 genfo <- read.delim(genfo_file_name)
 bg_genes <- as.vector(unique(genfo$gene_name))
 ```
 
-### Lengths of genes
-#### Plot out the length distribution for all the genes in Mus_musculus.GRCm38.94
+## Lengths of all genes
+The gene info file contains the lengths of all the genes in the mouse genome `r genome`. 
+These can be plotted so that some thresholds for length categories can be determined.
+Plot out the length distribution for all the genes.
 ```{r, fig.width = 10}
 par(mfrow = c(1,2))
 plot(density(log2(genfo$length)), lwd = 2, main = "", xlab = "log2 gene length")
@@ -96,8 +108,8 @@ sapply(names(thresholds), function(x){
 })
 ```
 
-The thresholds
-```{r, echo = TRUE}
+## Thresholds
+```{r}
 thresholds
 ```
 
@@ -149,21 +161,8 @@ sapply(names(thresholds), function(length_cat){
 
 ```
 
-### Generating the biased gene lists
+## Generating the biased gene lists
            
-           
-           
-           
-           
-           
-           
-           
-           
-           
-           
-           
-
-
 ```{r generate_gene_lists}
 biased_lengths <- lapply(names(thresholds), function(category){
 
@@ -208,7 +207,7 @@ boxplot(lengths, col = 1)
 The odd gene that doesn't fall within the expected size range may be due to name 
 duplication.
 
-### GO overrepresentation analysis
+## GO overrepresentation analysis
          
 Run the gene lists through a GO overrepresentation analysis.
 

@@ -17,7 +17,7 @@ options(max.print="75")
 display_code <- FALSE
 knitr::opts_knit$set(global.par = TRUE, width=75)
 knitr::opts_chunk$set(echo=display_code,
-	             cache=TRUE,
+	            # cache=TRUE,
                prompt=FALSE,
                tidy=TRUE,
                comment=NA,

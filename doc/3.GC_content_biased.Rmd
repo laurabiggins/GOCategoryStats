@@ -15,7 +15,7 @@ options(max.print="75")
 display_code <- FALSE
 knitr::opts_knit$set(global.par = TRUE, width=75)
 knitr::opts_chunk$set(echo=display_code,
-	             cache=TRUE,
+	             #cache=TRUE,
                prompt=FALSE,
                tidy=TRUE,
                comment=NA,
@@ -104,12 +104,19 @@ gene_counts <- sapply(names(thresholds), function(category_filter){
   }
 })
 
-gene_counts_tibble <- tibble::enframe(gene_counts, name = "category", value = "gene count")
-gene_counts_tibble %>%
+gene_counts_tibble <- tibble::enframe(gene_counts, name = "category", value = "gene count") %>%
   dplyr::mutate(probabilities = probabilities)
 
 ```
+<div class = "row">
 
+<div class = "col-md-8">
+```{r}
+DT::datatable(gene_counts_tibble, options = list(dom = 't'))
+```
+</div>
+<br>
+</div>
 
 ```{r, results = FALSE}
 plot(density(genfo$GC_content), 

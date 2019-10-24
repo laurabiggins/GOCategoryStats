@@ -39,22 +39,15 @@ palette(brewer.pal(6, "Set2"))
 genome <- "Mus_musculus.GRCm38.94"
 ```
 
-Set a cut-off for the minimum number of times a category must appear in the 100 tests.
+
 ```{r}
+# Set a cut-off for the minimum number of times a category must appear in the 100 tests.
 min_appearances <- 30
 ```
 
 
-
-Why do we want these?
-GC biases can exist in datasets for a range of reasons. 
-PCR duplication
-
 To check whether any gene ontology or other functional categories were associated 
 with high or low GC content, lists of genes were generated biased by GC content. 
-
-To generate the lists, a file containing the GC content of all the genes in the
-mouse genome is required. The processing to obtain this file is described in ....
 
 Preliminary work looking at GC biases using intervals over the whole range of GC 
 content in the genome only identified categories using genes with high or low GC content, 
@@ -66,11 +59,14 @@ genfo_file_name <- paste0("../data/", genome, "_gene_info.txt")
 
 genfo <- read.delim(genfo_file_name)
 bg_genes <- as.vector(unique(genfo$gene_name))
-
-plot(density(genfo$GC_content), lwd = 2, main = "", xlab = "GC content", xlim = c(0.25,0.75))
 ```
 
-## Selecting GC thresholds.
+```{r fig.height = 3, fig.width = 4}
+plot(density(genfo$GC_content), lwd = 2, main = "", xlab = "GC content", xlim = c(0.25,0.75))
+```
+<br><br>
+
+## Selecting GC thresholds
 
 For the preliminary work, arbitrary thresholds of 0.35, 0.4, 0.5, 0.55, 0.6 GC were used.
 
@@ -110,20 +106,19 @@ gene_counts_tibble <- tibble::enframe(gene_counts, name = "category", value = "g
 ```
 <div class = "row">
 
-<div class = "col-md-8">
+<div class = "col-md-5">
 ```{r}
-DT::datatable(gene_counts_tibble, options = list(dom = 't'))
+DT::datatable(gene_counts_tibble, options = list(dom = 't'), rownames = FALSE)
 ```
 </div>
-<br>
-</div>
 
+<div class = "col-md-7">
 ```{r, results = FALSE}
 plot(density(genfo$GC_content), 
      lwd  = 2, 
      main = paste0("GC content of genes in ", genome, " genome"), 
      xlab = "log2 gene length",
-     xlim = c(0.25,0.75)
+     xlim = c(0.28,0.71)
      )
 
 sapply(names(thresholds), function(x){
@@ -131,7 +126,11 @@ sapply(names(thresholds), function(x){
   abline(v = thresholds[x], col = colours[x], lwd = 2, lty = 2)
 })
 ```
+</div>
 
+<br>
+</div>
+<br><br>
 
 ```{r highlight_density, fig.height = 6, results = FALSE, fig.width = 10}
 par(mfrow = c(2, 3))
@@ -183,6 +182,7 @@ sapply(names(thresholds), function(category_filter){
 })  
 
 ```
+<br><br>
 
 ## Generating the biased gene lists
 
@@ -223,9 +223,9 @@ boxplot(GC, col = 1, las = 1, main = "Distribution of GC content for 100 sets of
 ```
 
 
-### GO overrepresentation analysis
-         
-Run the gene lists through a GO overrepresentation analysis.
+## GO overrepresentation analysis
+
+The 100 sets of 200 genes for each GC category were run through a GO overrepresentation analysis.
 
 ```{r, eval=FALSE}
 go_results <- overrep_test(all_go_categories, GC_genelists[[1]][,1], bg_genes)
@@ -238,22 +238,17 @@ GC_results <- lapply(GC_genelists, function(subset){
   })
 })
 
+#Any categories with 0 significant results can be removed.
+GC_results <- GC_results[!sapply(GC_results, is.null)]
+
+# We don't want to run the GO analysis each time the document is knitted as it takes
+# too long. The code was run once and the data saved as an .rda object that can be 
+# quickly loaded in to the R session.
 save(GC_results, file = "../data/GC_results.rda")
 ```
 
-Any categories with 0 significant results can be removed.
-```{r}
-sapply(GC_results, is.null)
-
-GC_results <- GC_results[!sapply(GC_results, is.null)]
-```
-
-We don't want to run the GO analysis each time the document is knitted as it takes
-too long. The code was run once and the data saved as an .rda object that can be 
-quickly loaded in to the R session.
-
-See how many significant categories were returned for each gene list.
 ```{r check_results}
+# See how many significant categories were returned for each gene list.
 load("../data/GC_results.rda")
 
 number_of_results <- sapply(GC_results, function(x){
@@ -265,10 +260,16 @@ number_of_results <- sapply(GC_results, function(x){
 
 The number of gene sets (out of 100) that returned significant results from the GO 
 overrepresentation analysis.
+<br>
+<div class = "row">
+<div class = "col-md-4">
 ```{r}
-sapply(number_of_results, length)
+tibble::enframe(sapply(number_of_results, length), name = "category", value = "results") %>%
+  DT::datatable(options = list(dom = 't'), rownames = FALSE)
 ```
-
+</div>
+</div>
+<br><br>
 
 The bean plots show the number of categories returned from each gene list.
 The null results have been removed.

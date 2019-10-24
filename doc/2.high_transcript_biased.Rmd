@@ -3,7 +3,8 @@ title: "2.High transcript biased gene sets"
 date: "`r Sys.Date()`"
 output:
   rmdformats::readthedown:
-    highlight: kate
+#  rmdformats::babraham_bioinformatics:
+  highlight: kate
 ---
 
 ```{r setup, echo=FALSE, cache=FALSE, message = FALSE}

@@ -1,0 +1,278 @@
+\documentclass[]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\usepackage{fixltx2e} % provides \textsubscript
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else % if luatex or xelatex
+  \ifxetex
+    \usepackage{mathspec}
+  \else
+    \usepackage{fontspec}
+  \fi
+  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+\fi
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+% use microtype if available
+\IfFileExists{microtype.sty}{%
+\usepackage{microtype}
+\UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\hypersetup{unicode=true,
+            pdftitle={0.Generating biased gene lists for GOliath: Overview and initial processing},
+            pdfauthor={Laura Biggins},
+            pdfborder={0 0 0},
+            breaklinks=true}
+\urlstyle{same}  % don't use monospace font for urls
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.77,0.63,0.00}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\usepackage{graphicx,grffile}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+\IfFileExists{parskip.sty}{%
+\usepackage{parskip}
+}{% else
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+}
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{0}
+% Redefines (sub)paragraphs to behave more like sections
+\ifx\paragraph\undefined\else
+\let\oldparagraph\paragraph
+\renewcommand{\paragraph}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+\let\oldsubparagraph\subparagraph
+\renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+
+%%% Use protect on footnotes to avoid problems with footnotes in titles
+\let\rmarkdownfootnote\footnote%
+\def\footnote{\protect\rmarkdownfootnote}
+
+%%% Change title format to be more compact
+\usepackage{titling}
+
+% Create subtitle command for use in maketitle
+\providecommand{\subtitle}[1]{
+  \posttitle{
+    \begin{center}\large#1\end{center}
+    }
+}
+
+\setlength{\droptitle}{-2em}
+
+  \title{0.Generating biased gene lists for GOliath: Overview and initial
+processing}
+    \pretitle{\vspace{\droptitle}\centering\huge}
+  \posttitle{\par}
+    \author{Laura Biggins}
+    \preauthor{\centering\large\emph}
+  \postauthor{\par}
+      \predate{\centering\large\emph}
+  \postdate{\par}
+    \date{4 March 2019}
+
+
+\begin{document}
+\maketitle
+
+\#\#GOLiath GOliath is a web-based tool for performing functional
+enrichment analysis on lists of genes. It uses existing sets of genes
+that have been annotated and grouped into functional categories.. what?
+am I just trying to explain GSEA?
+
+The set of query genes are tested for overrepresentation in each of the
+functional categories. The statistical test used is a Fisher's Exact
+test and this provides a p-value as a measure of significance. A
+multiple testing correction is carried out using the Benjamini-Hochberg
+method. An enrichment score is also calculated. This functional
+enrichment testing is a very useful method to find biological meaning
+from the data. It comes at the end of a pipeline/after many steps of
+production and processing of the data. At various points in the
+preparation of sequencing libraries and throughout the analysis of the
+data, biases can be introduced, which can ultimately affect which genes
+are identified as being overrepresented. For example, during library
+preparation, PCR is usually used to amplify the amount of starting
+material. During the rounds of PCR, sequences with high proportions of G
+and C nucleotides can be favoured as the GC bonds break down at a higher
+temperature than the AT bonds. This can lead to a GC bias in the
+library. Another eg -- long genes/closest genes We wanted to produce
+lists of genes biased in different ways e.g.~by GC content of the genes,
+length of the gen and run these through functional enrichment analysis
+to see whether any function categories were identified and may therefore
+be associated with a bias in the data. The output, a set of functional
+categories associated with a particular bias, is used in GOliath. Each
+significant result from the functional enrichment analysis of the query
+genes is checked against the list of potentially biased categories and
+flagged up in the results file.
+
+\hypertarget{pre-processing-of-data-on-cluster}{%
+\subsection{Pre-processing of data on
+cluster}\label{pre-processing-of-data-on-cluster}}
+
+\hypertarget{generating-a-gene-info-file-for-the-mouse-genome}{%
+\subsubsection{Generating a gene info file for the mouse
+genome}\label{generating-a-gene-info-file-for-the-mouse-genome}}
+
+The script create\_gene\_info\_file\_from\_gtf.pl takes a gtf file and
+parses it to create a gene info file that contains all the genes that
+are annotated in the gtf file. This should be all the genes in that
+version of the genome.
+
+Downloaded the raw version of the file from github
+\texttt{wget\ https://raw.githubusercontent.com/s-andrews/GOliath/master/processing/}
+\texttt{gene\_info\_processing/create\_gene\_info\_file\_from\_gtf.pl}
+
+Run this script to create the gene info file
+\texttt{perl\ create\_gene\_info\_file\_from\_gtf.pl\ -\/-gtf\ Mus\_musculus.GRCm38.94.gtf.gz\ -\/-genome\ GRCm38}
+
+We'll import the gene info file so that we can plot the GC distribution
+for all genes in the Mus\_musculus.GRCm38.94.gtf.gz genome.
+
+There are import\_GTF and parse\_GTF\_info functions within the
+GOcategoryStats package but to get genome information i.e.~GC content,
+the parsing and lookups need to be done with access to genome
+information, so on the cluster. The import\_GTF and parse\_GTF\_info
+functions just work with the gtf file itself which does not contain
+sequence content information.
+
+Import the processed gene info file
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{genfo <-}\StringTok{ }\KeywordTok{read.delim}\NormalTok{(}\StringTok{"M:/biased_gene_lists/Mus_musculus.GRCm38.94_gene_info.txt"}\NormalTok{)}
+\KeywordTok{head}\NormalTok{(genfo)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##              gene_id     gene_name chromosome   start     end strand
+## 1 ENSMUSG00000102693 4933401J01Rik          1 3073253 3074322      +
+## 2 ENSMUSG00000064842       Gm26206          1 3102016 3102125      +
+## 3 ENSMUSG00000051951          Xkr4          1 3205901 3671498      -
+## 4 ENSMUSG00000102851       Gm18956          1 3252757 3253236      +
+## 5 ENSMUSG00000103377       Gm37180          1 3365731 3368549      -
+## 6 ENSMUSG00000104017       Gm37363          1 3375556 3377788      -
+##                biotype biotype_family length GC_content no_of_transcripts
+## 1                  TEC             NA   1069      0.342                 1
+## 2                snRNA             NA    109      0.358                 1
+## 3       protein_coding             NA 465597      0.385                 3
+## 4 processed_pseudogene             NA    479      0.399                 1
+## 5                  TEC             NA   2818      0.408                 1
+## 6                  TEC             NA   2232      0.370                 1
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{colnames}\NormalTok{(genfo)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##  [1] "gene_id"           "gene_name"         "chromosome"       
+##  [4] "start"             "end"               "strand"           
+##  [7] "biotype"           "biotype_family"    "length"           
+## [10] "GC_content"        "no_of_transcripts"
+\end{verbatim}
+
+Using this gene info file and some extra processing, lists of genes were
+generated for the following categories:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Length biased gene sets
+\item
+  High transcript biased gene sets
+\item
+  GC biased gene sets
+\item
+  Chromosomal biased gene sets
+\item
+  Closest genes to random positions
+\item
+  Public data gene sets
+\end{enumerate}
+
+The processing for categories 1-4 was carried out within an R session
+and is detailed in the Rmarkdown documents of the same names.
+
+To generate the gene sets for Category 5 - Closest genes to random
+positions, a python script was written. This generated random locations
+in the genome and found the closest gene to each position.
+
+Category 6 - the public data required a separate, more extensive
+workflow.
+
+The processing of each of the 6 categories is detailed in the individual
+Rmarkdown documents.
+
+See closest\_gene.Rmd - the generation of the genfo file was the same.
+We can use the genfo file created from that processing to generate the
+biased gene lists.
+
+Some other lists were generated on the cluster as the processing was
+fairly complicated. In particular, generating the sets of ``closest
+genes'' to random positions. I also have a script that quickly filters
+on various parameters, so have used that for generating some gene lists.
+
+To produce the lists of genes per chromosome, I'll do that within R as
+it's fairly simple and means not having to use the cluster and move more
+files around.
+
+
+\end{document}

@@ -1,14 +1,29 @@
 ---
 title: "3.GC biased gene sets"
+author: "Laura Biggins"
+date: "`r Sys.Date()`"
 output:
-  html_document:
-    df_print: paged
+  rmdformats::readthedown:
+    highlight: kate
 ---
 
-```{r setup, include=FALSE}
+```{r setup, echo=FALSE, cache=FALSE, message = FALSE}
+library(knitr)
+library(rmdformats)
+## Global options
+options(max.print="75")
 display_code <- FALSE
-knitr::opts_knit$set(global.par = TRUE)
-knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = display_code)
+knitr::opts_knit$set(global.par = TRUE, width=75)
+knitr::opts_chunk$set(echo=display_code,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+
+library(devtools)
+load_all()
 ```
 
 
@@ -55,15 +70,16 @@ bg_genes <- as.vector(unique(genfo$gene_name))
 plot(density(genfo$GC_content), lwd = 2, main = "", xlab = "GC content", xlim = c(0.25,0.75))
 ```
 
-### Selecting GC thresholds.
+## Selecting GC thresholds.
 
-For the preliminary work, arbitrary thresholds of 0.35, 0.4, 0.5, 0.55, 0.6 GC 
+For the preliminary work, arbitrary thresholds of 0.35, 0.4, 0.5, 0.55, 0.6 GC were used.
 
 However, selecting thresholds dependent on the distribution of the data is a more 
 robust method for applying to different species and future versions of this genome.
 The GC content thresholds will be based on the distribution of GC content over all genes.
 The probabilities selected will be 0.01, 0.05, 0.1, 0.9, 0.95, 0.99.
 ```{r}
+library("magrittr")
 probabilities <-  c(0.01, 0.05, 0.1, 0.9, 0.95, 0.99)
 thresholds <- quantile(genfo$GC_content, probs = probabilities)
 
@@ -88,7 +104,10 @@ gene_counts <- sapply(names(thresholds), function(category_filter){
   }
 })
 
-gene_counts  
+gene_counts_tibble <- tibble::enframe(gene_counts, name = "category", value = "gene count")
+gene_counts_tibble %>%
+  dplyr::mutate(probabilities = probabilities)
+
 ```
 
 
@@ -158,10 +177,10 @@ sapply(names(thresholds), function(category_filter){
 
 ```
 
-### Generating the biased gene lists
+## Generating the biased gene lists
 
 The thresholds are used to filter the set of genes. 200 genes are then randomly 
-selested from the filtered set. This is repeated 100 times to get 100 lists each 
+selected from the filtered set. This is repeated 100 times to get 100 lists each 
 containing 200 genes.
 
 ```{r generate_gene_lists}

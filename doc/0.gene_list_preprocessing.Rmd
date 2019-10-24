@@ -3,7 +3,6 @@ title: '0.Generating biased gene lists for GOliath: Overview and initial process
 author: "Laura Biggins"
 date: "4 March 2019"
 output:
-  pdf_document: default
   html_document:
     df_print: paged
 ---

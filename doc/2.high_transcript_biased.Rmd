@@ -1,6 +1,7 @@
 ---
 title: "2.High transcript biased gene sets"
 date: "`r Sys.Date()`"
+self-contained: false
 output:
   rmdformats::readthedown:
 #  rmdformats::babraham_bioinformatics:
@@ -26,8 +27,8 @@ knitr::opts_chunk$set(echo=display_code,
 
 library(devtools)
 load_all()
-```
 
+```
 
 
 ```{r}
@@ -124,8 +125,10 @@ thresholds
 <div class = "row">
 
 <div class = "col-md-8">
-```{r}
+```{r threshold_tables}
+print(thresholds)
 DT::datatable(thresholds, options = list(dom = 't'))
+knit_print(DT::datatable(thresholds, options = list(dom = 't')))
 ```
 </div>
 <br>

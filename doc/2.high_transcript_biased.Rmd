@@ -116,25 +116,16 @@ transcript_thresholds <- quantile(genfo$no_of_transcripts, probs = probabilities
 gene_counts <- sapply(transcript_thresholds, function(x) sum(genfo$no_of_transcripts >= x))
 
 thresholds <- data.frame(transcript_thresholds, probabilities, gene_counts)
-
-DT::datatable(thresholds, options = list(dom = 't'))
-
-thresholds
 ```
 
 <div class = "row">
-
 <div class = "col-md-8">
 ```{r threshold_tables}
-print(thresholds)
 DT::datatable(thresholds, options = list(dom = 't'))
-knit_print(DT::datatable(thresholds, options = list(dom = 't')))
 ```
 </div>
 <br>
 </div>
-
-
 
 ```{r, eval = FALSE}
 #It worked nicely for the gene lengths to plot out the numbers on graphs but the 
